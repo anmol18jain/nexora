@@ -1,7 +1,7 @@
 {
   "name": "nexora",
   "version": "1.0.0",
-  "description": "NEXORA - Call, share and watch together.",
+  "description": "NEXORA real-time communication platform",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "express": "^5.1.0",
-    "socket.io": "^4.8.1",
-    "web-push": "^3.6.7"
+    "socket.io": "^4.8.1"
   }
 }

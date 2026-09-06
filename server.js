@@ -1,161 +1,830 @@
-const express = require('express');
-const http = require('http');
-const path = require('path');
-const WebSocket = require('ws');
-const webpush = require('web-push');
-const cors = require('cors');
+const express = require("express");
+const http = require("http");
+const path = require("path");
+const crypto = require("crypto");
+const { Server } = require("socket.io");
 
 const app = express();
-app.use(cors());
-app.use(express.json());
-
-// Serve static frontend assets
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.static(__dirname));
-
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'), (err) => {
-    if (err) res.sendFile(path.join(__dirname, 'index.html'));
-  });
-});
-
-app.get('/sw.js', (req, res) => {
-  res.setHeader('Service-Worker-Allowed', '/');
-  res.setHeader('Content-Type', 'application/javascript');
-  res.sendFile(path.join(__dirname, 'public', 'sw.js'), (err) => {
-    if (err) res.sendFile(path.join(__dirname, 'sw.js'));
-  });
-});
-
-// Configure VAPID Keys for Background Push
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BGvJGF5gcTfmZ3yA059WkFBvWAuO5Cskom8t_ltXcaEjRVqmaJaNFH6nuBm7hHidGLQJpAaTyA6dVmijq_8Ln1I';
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '0bLcNGyc-2D8_8x1xIPNUiL3X5hj7Vm-XuiIFtmJmXU';
-
-if (VAPID_PUBLIC_KEY !== 'PASTE_YOUR_PUBLIC_KEY_HERE') {
-  webpush.setVapidDetails('mailto:admin@loungesuite.com', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
-}
-
-// User state directory: id -> { socket, pushSubscription }
-const directory = new Map();
-
-function broadcastDirectory() {
-  const onlineUsers = [];
-  directory.forEach((val, key) => {
-    if (val.socket && val.socket.readyState === WebSocket.OPEN) {
-      onlineUsers.push(key);
-    }
-  });
-
-  const payload = JSON.stringify({ type: 'presence_update', users: onlineUsers });
-  directory.forEach((val) => {
-    if (val.socket && val.socket.readyState === WebSocket.OPEN) {
-      val.socket.send(payload);
-    }
-  });
-}
-
-// Push subscription registration
-app.post('/api/subscribe', (req, res) => {
-  const { userId, subscription } = req.body;
-  if (!userId || !subscription) return res.status(400).json({ error: 'Missing params' });
-  const entry = directory.get(userId) || {};
-  directory.set(userId, { ...entry, pushSubscription: subscription });
-  return res.status(200).json({ success: true });
-});
-
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
 
-wss.on('connection', (ws) => {
-  let boundUserId = null;
+const PORT = process.env.PORT || 3000;
 
-  ws.on('message', async (raw) => {
-    let msg;
-    try { msg = JSON.parse(raw); } catch { return; }
+/* =========================================================
+   SOCKET.IO
+========================================================= */
 
-    // Heartbeat ping-pong to keep Render connection alive
-    if (msg.type === 'ping') {
-      ws.send(JSON.stringify({ type: 'pong' }));
-      return;
-    }
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  },
 
-    // User Registration
-    if (msg.type === 'register') {
-      boundUserId = msg.userId.trim();
-      const existing = directory.get(boundUserId) || {};
-      directory.set(boundUserId, { ...existing, socket: ws });
-      broadcastDirectory();
-      return;
-    }
+  // Allows signaling + reasonably sized messages.
+  maxHttpBufferSize: 10 * 1024 * 1024,
 
-    // Fast Trickle ICE Relay
-    if (msg.type === 'candidate') {
-      const recipient = directory.get(msg.target?.trim());
-      if (recipient?.socket?.readyState === WebSocket.OPEN) {
-        recipient.socket.send(JSON.stringify({
-          type: 'candidate',
-          from: boundUserId,
-          candidate: msg.candidate
-        }));
-      }
-      return;
-    }
+  pingTimeout: 20000,
+  pingInterval: 25000
+});
 
-    // Call Offer Relay + Background Wakeup
-    if (msg.type === 'offer') {
-      const recipient = directory.get(msg.target?.trim());
 
-      if (recipient?.socket?.readyState === WebSocket.OPEN) {
-        recipient.socket.send(JSON.stringify({
-          type: 'offer',
-          from: boundUserId,
-          offer: msg.offer,
-          callMode: msg.callMode
-        }));
-      }
+/* =========================================================
+   EXPRESS
+========================================================= */
 
-      // Wake background device if tab is closed
-      if (recipient?.pushSubscription && VAPID_PUBLIC_KEY !== 'PASTE_YOUR_PUBLIC_KEY_HERE') {
-        const payload = JSON.stringify({
-          title: `Incoming ${msg.callMode === 'audio' ? 'Audio' : 'Video'} Call`,
-          callerId: boundUserId
-        });
-        webpush.sendNotification(recipient.pushSubscription, payload, { TTL: 60, urgency: 'high' })
-          .catch((e) => console.error('Push delivery error:', e.statusCode));
-      }
-      return;
-    }
+app.disable("x-powered-by");
 
-    // Call Answer Relay
-    if (msg.type === 'answer') {
-      const recipient = directory.get(msg.target?.trim());
-      if (recipient?.socket?.readyState === WebSocket.OPEN) {
-        recipient.socket.send(JSON.stringify({
-          type: 'answer',
-          from: boundUserId,
-          answer: msg.answer
-        }));
-      }
-      return;
-    }
+app.use(express.json({
+  limit: "1mb"
+}));
 
-    // Hangup
-    if (msg.type === 'hangup') {
-      const recipient = directory.get(msg.target?.trim());
-      if (recipient?.socket?.readyState === WebSocket.OPEN) {
-        recipient.socket.send(JSON.stringify({ type: 'hangup', from: boundUserId }));
-      }
-    }
-  });
+app.use(
+  express.static(
+    path.join(__dirname, "public")
+  )
+);
 
-  ws.on('close', () => {
-    if (boundUserId && directory.has(boundUserId)) {
-      const record = directory.get(boundUserId);
-      directory.set(boundUserId, { ...record, socket: null });
-      broadcastDirectory();
-    }
+
+/* =========================================================
+   HEALTH CHECK
+========================================================= */
+
+app.get("/health", (req, res) => {
+  res.json({
+    ok: true,
+    name: "NEXORA",
+    status: "online",
+    time: new Date().toISOString()
   });
 });
 
-const PORT = process.env.PORT || 8080;
-server.listen(PORT, () => console.log(`Signaling server running on port ${PORT}`));
+
+/* =========================================================
+   ROOM STORAGE
+
+   This is intentionally in-memory for now.
+
+   Later we can move persistent room information to Redis
+   when scaling across multiple Render instances.
+========================================================= */
+
+const rooms = new Map();
+
+
+function cleanRoomId(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]/g, "")
+    .slice(0, 64);
+}
+
+
+function cleanName(value) {
+  const name = String(value || "")
+    .trim()
+    .replace(/[<>]/g, "")
+    .slice(0, 30);
+
+  return name || "Guest";
+}
+
+
+function getRoom(roomId) {
+
+  if (!rooms.has(roomId)) {
+
+    rooms.set(roomId, {
+
+      createdAt: Date.now(),
+
+      users: new Map(),
+
+      media: {
+        url: "",
+        playing: false,
+        currentTime: 0,
+        updatedAt: Date.now()
+      }
+
+    });
+
+  }
+
+  return rooms.get(roomId);
+}
+
+
+function getRoomUsers(room) {
+
+  return [...room.users.entries()]
+    .map(([id, user]) => ({
+      id,
+      name: user.name,
+      joinedAt: user.joinedAt
+    }));
+
+}
+
+
+/* =========================================================
+   REMOVE USER
+========================================================= */
+
+function leaveCurrentRoom(socket) {
+
+  const roomId =
+    socket.data.roomId;
+
+  if (!roomId) return;
+
+  const room =
+    rooms.get(roomId);
+
+  if (room) {
+
+    room.users.delete(
+      socket.id
+    );
+
+
+    /* Tell remaining clients */
+
+    socket
+      .to(roomId)
+      .emit(
+        "user-left",
+        {
+          id: socket.id
+        }
+      );
+
+
+    /* Send fresh participant list */
+
+    io
+      .to(roomId)
+      .emit(
+        "room-users",
+        getRoomUsers(room)
+      );
+
+
+    /*
+      Delete completely empty rooms so memory
+      doesn't keep growing forever.
+    */
+
+    if (
+      room.users.size === 0
+    ) {
+
+      rooms.delete(roomId);
+
+      console.log(
+        `[ROOM REMOVED] ${roomId}`
+      );
+
+    }
+
+  }
+
+
+  try {
+
+    socket.leave(roomId);
+
+  } catch (error) {
+
+    console.warn(
+      "Unable to leave room:",
+      error.message
+    );
+
+  }
+
+
+  socket.data.roomId = null;
+  socket.data.name = null;
+}
+
+
+/* =========================================================
+   SOCKET CONNECTION
+========================================================= */
+
+io.on(
+  "connection",
+  (socket) => {
+
+    console.log(
+      `[CONNECTED] ${socket.id}`
+    );
+
+
+    /* =====================================================
+       JOIN ROOM
+    ===================================================== */
+
+    socket.on(
+      "join-room",
+      (payload = {}, callback) => {
+
+        const respond =
+          typeof callback === "function"
+            ? callback
+            : () => {};
+
+
+        const roomId =
+          cleanRoomId(
+            payload.roomId
+          );
+
+        const name =
+          cleanName(
+            payload.name
+          );
+
+
+        if (!roomId) {
+
+          respond({
+            ok: false,
+            error: "Invalid room ID."
+          });
+
+          return;
+        }
+
+
+        /*
+          If this socket was previously inside another
+          room, remove it first.
+        */
+
+        if (
+          socket.data.roomId
+        ) {
+
+          leaveCurrentRoom(
+            socket
+          );
+
+        }
+
+
+        const room =
+          getRoom(roomId);
+
+
+        socket.join(roomId);
+
+
+        socket.data.roomId =
+          roomId;
+
+        socket.data.name =
+          name;
+
+
+        room.users.set(
+          socket.id,
+          {
+            name,
+            joinedAt: Date.now()
+          }
+        );
+
+
+        console.log(
+          `[JOIN] ${name} -> ${roomId}`
+        );
+
+
+        /*
+          Return room state directly to the joining user.
+        */
+
+        respond({
+
+          ok: true,
+
+          selfId: socket.id,
+
+          roomId,
+
+          users:
+            getRoomUsers(room),
+
+          media:
+            room.media
+
+        });
+
+
+        /*
+          Tell existing users that somebody joined.
+
+          Existing users will create WebRTC offers toward
+          this new participant.
+        */
+
+        socket
+          .to(roomId)
+          .emit(
+            "user-joined",
+            {
+              id: socket.id,
+              name
+            }
+          );
+
+
+        /*
+          Synchronize participant sidebar.
+        */
+
+        io
+          .to(roomId)
+          .emit(
+            "room-users",
+            getRoomUsers(room)
+          );
+
+      }
+    );
+
+
+    /* =====================================================
+       WEBRTC SIGNALING
+
+       Offers
+       Answers
+       ICE candidates
+    ===================================================== */
+
+    socket.on(
+      "signal",
+      (payload = {}) => {
+
+        const target =
+          payload.target;
+
+        const data =
+          payload.data;
+
+
+        if (
+          !target ||
+          !data
+        ) {
+          return;
+        }
+
+
+        /*
+          Don't allow clients to signal themselves.
+        */
+
+        if (
+          target === socket.id
+        ) {
+          return;
+        }
+
+
+        io
+          .to(target)
+          .emit(
+            "signal",
+            {
+              from: socket.id,
+
+              name:
+                socket.data.name ||
+                "Guest",
+
+              data
+            }
+          );
+
+      }
+    );
+
+
+    /* =====================================================
+       CHAT
+    ===================================================== */
+
+    socket.on(
+      "chat-message",
+      (payload = {}) => {
+
+        const roomId =
+          socket.data.roomId;
+
+
+        if (!roomId) return;
+
+
+        const text =
+          String(
+            payload.text || ""
+          )
+            .trim()
+            .slice(0, 2000);
+
+
+        if (!text) return;
+
+
+        io
+          .to(roomId)
+          .emit(
+            "chat-message",
+            {
+
+              id:
+                crypto.randomUUID(),
+
+              senderId:
+                socket.id,
+
+              name:
+                socket.data.name ||
+                "Guest",
+
+              text,
+
+              timestamp:
+                Date.now()
+
+            }
+          );
+
+      }
+    );
+
+
+    /* =====================================================
+       REACTIONS
+    ===================================================== */
+
+    socket.on(
+      "reaction",
+      (payload = {}) => {
+
+        const roomId =
+          socket.data.roomId;
+
+
+        if (!roomId) return;
+
+
+        const allowedReactions = [
+          "❤️",
+          "🔥",
+          "👏",
+          "😂",
+          "🎉",
+          "👍"
+        ];
+
+
+        if (
+          !allowedReactions.includes(
+            payload.emoji
+          )
+        ) {
+          return;
+        }
+
+
+        io
+          .to(roomId)
+          .emit(
+            "reaction",
+            {
+
+              senderId:
+                socket.id,
+
+              name:
+                socket.data.name ||
+                "Guest",
+
+              emoji:
+                payload.emoji
+
+            }
+          );
+
+      }
+    );
+
+
+    /* =====================================================
+       WATCH TOGETHER — LOAD MEDIA
+    ===================================================== */
+
+    socket.on(
+      "media-load",
+      (payload = {}) => {
+
+        const roomId =
+          socket.data.roomId;
+
+
+        if (!roomId) return;
+
+
+        const room =
+          rooms.get(roomId);
+
+
+        if (!room) return;
+
+
+        const url =
+          String(
+            payload.url || ""
+          )
+            .trim()
+            .slice(0, 2000);
+
+
+        if (!url) return;
+
+
+        room.media = {
+
+          url,
+
+          playing: false,
+
+          currentTime: 0,
+
+          updatedAt:
+            Date.now()
+
+        };
+
+
+        /*
+          Sender already loads it locally, so send to
+          everybody else.
+        */
+
+        socket
+          .to(roomId)
+          .emit(
+            "media-load",
+            room.media
+          );
+
+      }
+    );
+
+
+    /* =====================================================
+       WATCH TOGETHER — PLAYBACK STATE
+
+       The current starter frontend doesn't yet use all
+       of this, but the backend is prepared for synchronized
+       playback.
+    ===================================================== */
+
+    socket.on(
+      "media-state",
+      (payload = {}) => {
+
+        const roomId =
+          socket.data.roomId;
+
+
+        if (!roomId) return;
+
+
+        const room =
+          rooms.get(roomId);
+
+
+        if (!room) return;
+
+
+        const currentTime =
+          Number(
+            payload.currentTime
+          );
+
+
+        room.media.playing =
+          Boolean(
+            payload.playing
+          );
+
+
+        room.media.currentTime =
+          Number.isFinite(
+            currentTime
+          )
+            ? Math.max(
+                0,
+                currentTime
+              )
+            : 0;
+
+
+        room.media.updatedAt =
+          Date.now();
+
+
+        socket
+          .to(roomId)
+          .emit(
+            "media-state",
+            room.media
+          );
+
+      }
+    );
+
+
+    /* =====================================================
+       MANUAL LEAVE
+    ===================================================== */
+
+    socket.on(
+      "leave-room",
+      () => {
+
+        leaveCurrentRoom(
+          socket
+        );
+
+      }
+    );
+
+
+    /* =====================================================
+       DISCONNECT
+    ===================================================== */
+
+    socket.on(
+      "disconnect",
+      (reason) => {
+
+        console.log(
+          `[DISCONNECTED] ${socket.id} (${reason})`
+        );
+
+        leaveCurrentRoom(
+          socket
+        );
+
+      }
+    );
+
+
+    socket.on(
+      "error",
+      (error) => {
+
+        console.error(
+          `[SOCKET ERROR] ${socket.id}`,
+          error
+        );
+
+      }
+    );
+
+  }
+);
+
+
+/* =========================================================
+   FALLBACK
+
+   Allows normal browser navigation back to the SPA.
+========================================================= */
+
+app.use((req, res, next) => {
+
+  /*
+    Never intercept Socket.IO's own endpoint.
+  */
+
+  if (
+    req.path.startsWith(
+      "/socket.io/"
+    )
+  ) {
+
+    return next();
+
+  }
+
+
+  /*
+    If the browser requests a file that doesn't exist,
+    don't incorrectly return index.html for it.
+  */
+
+  if (
+    path.extname(req.path)
+  ) {
+
+    return res.status(404).send(
+      "Not found"
+    );
+
+  }
+
+
+  res.sendFile(
+    path.join(
+      __dirname,
+      "public",
+      "index.html"
+    )
+  );
+
+});
+
+
+/* =========================================================
+   PROCESS ERROR LOGGING
+========================================================= */
+
+process.on(
+  "unhandledRejection",
+  (reason) => {
+
+    console.error(
+      "Unhandled rejection:",
+      reason
+    );
+
+  }
+);
+
+
+process.on(
+  "uncaughtException",
+  (error) => {
+
+    console.error(
+      "Uncaught exception:",
+      error
+    );
+
+  }
+);
+
+
+/* =========================================================
+   START NEXORA
+========================================================= */
+
+server.listen(
+  PORT,
+  "0.0.0.0",
+  () => {
+
+    console.log("");
+    console.log(
+      "================================"
+    );
+
+    console.log(
+      "       NEXORA IS ONLINE"
+    );
+
+    console.log(
+      "================================"
+    );
+
+    console.log(
+      `Server: http://localhost:${PORT}`
+    );
+
+    console.log(
+      `Health: http://localhost:${PORT}/health`
+    );
+
+    console.log(
+      "Socket.IO: ready"
+    );
+
+    console.log(
+      "WebRTC signaling: ready"
+    );
+
+    console.log(
+      "================================"
+    );
+
+    console.log("");
+
+  }
+);
