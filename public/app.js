@@ -1,20 +1,15 @@
-/* =========================================================
-   NEXORA CLIENT
-========================================================= */
-
 const socket = io({
   reconnection: true,
   reconnectionAttempts: Infinity,
   reconnectionDelay: 500,
-  reconnectionDelayMax: 5000
+  reconnectionDelayMax: 5000,
+  timeout: 10000
 });
 
-const $ = (id) =>
-  document.getElementById(id);
-
+const $ = (id) => document.getElementById(id);
 
 /* =========================================================
-   ELEMENTS
+   BASIC ELEMENTS
 ========================================================= */
 
 const joinScreen = $("joinScreen");
@@ -26,7 +21,6 @@ const randomRoomButton = $("randomRoomButton");
 const joinButton = $("joinButton");
 
 const roomLabel = $("roomLabel");
-
 const peopleCount = $("peopleCount");
 const peopleList = $("peopleList");
 
@@ -40,7 +34,6 @@ const watchButton = $("watchButton");
 const leaveButton = $("leaveButton");
 
 const copyButton = $("copyButton");
-
 const sidebarButton = $("sidebarButton");
 const sidePanel = $("sidePanel");
 
@@ -57,86 +50,44 @@ const reactionLayer = $("reactionLayer");
 
 const connectionDot = $("connectionDot");
 const connectionText = $("connectionText");
-
 const toastElement = $("toast");
-
 
 /* MEDIA */
 
 const watchDialog = $("watchDialog");
+const closeMediaHubButton = $("closeMediaHubButton");
 
-const closeMediaHubButton =
-  $("closeMediaHubButton");
+const mediaUrlInput = $("mediaUrlInput");
+const loadMediaButton = $("loadMediaButton");
 
-const mediaUrlInput =
-  $("mediaUrlInput");
+const directVideoUrl = $("directVideoUrl");
+const loadDirectVideoButton = $("loadDirectVideoButton");
 
-const loadMediaButton =
-  $("loadMediaButton");
+const localCinemaInput = $("localCinemaInput");
+const selectedLocalFile = $("selectedLocalFile");
+const startLocalCinemaButton = $("startLocalCinemaButton");
 
-const directVideoUrl =
-  $("directVideoUrl");
+const watchStage = $("watchStage");
+const youtubeContainer = $("youtubeContainer");
+const sharedVideoPlayer = $("sharedVideoPlayer");
 
-const loadDirectVideoButton =
-  $("loadDirectVideoButton");
+const localCinemaWaiting = $("localCinemaWaiting");
+const localWaitingText = $("localWaitingText");
+const localJoinInput = $("localJoinInput");
 
-const localCinemaInput =
-  $("localCinemaInput");
+const watchTypeBadge = $("watchTypeBadge");
+const watchTitle = $("watchTitle");
+const watchStatus = $("watchStatus");
 
-const selectedLocalFile =
-  $("selectedLocalFile");
+const syncMediaButton = $("syncMediaButton");
+const fullscreenMediaButton = $("fullscreenMediaButton");
+const openMediaHubButton = $("openMediaHubButton");
+const closeWatchButton = $("closeWatchButton");
 
-const startLocalCinemaButton =
-  $("startLocalCinemaButton");
+const cinemaSyncText = $("cinemaSyncText");
+const cinemaTime = $("cinemaTime");
 
-const watchStage =
-  $("watchStage");
-
-const youtubeContainer =
-  $("youtubeContainer");
-
-const sharedVideoPlayer =
-  $("sharedVideoPlayer");
-
-const localCinemaWaiting =
-  $("localCinemaWaiting");
-
-const localWaitingText =
-  $("localWaitingText");
-
-const localJoinInput =
-  $("localJoinInput");
-
-const watchTypeBadge =
-  $("watchTypeBadge");
-
-const watchTitle =
-  $("watchTitle");
-
-const watchStatus =
-  $("watchStatus");
-
-const syncMediaButton =
-  $("syncMediaButton");
-
-const fullscreenMediaButton =
-  $("fullscreenMediaButton");
-
-const openMediaHubButton =
-  $("openMediaHubButton");
-
-const closeWatchButton =
-  $("closeWatchButton");
-
-const cinemaSyncText =
-  $("cinemaSyncText");
-
-const cinemaTime =
-  $("cinemaTime");
-
-const mediaQueue =
-  $("mediaQueue");
-
+const mediaQueue = $("mediaQueue");
 
 /* =========================================================
    STATE
@@ -152,6 +103,14 @@ let micEnabled = true;
 let cameraEnabled = true;
 let sharingScreen = false;
 
+let rtcConfiguration = {
+  iceServers: []
+};
+
+let turnEnabled = false;
+
+let currentQuality = "HD";
+
 let selectedCinemaFile = null;
 let localCinemaUrl = null;
 
@@ -162,52 +121,157 @@ let youtubeReady = false;
 
 let applyingRemoteState = false;
 
-let reconnectingRoom = false;
-
 const peers = new Map();
 const peerNames = new Map();
-
 const incomingFiles = new Map();
 
-
 /* =========================================================
-   WEBRTC CONFIG
+   HELPERS
 ========================================================= */
 
-const rtcConfiguration = {
-  iceServers: [
-    {
-      urls: [
-        "stun:stun.l.google.com:19302",
-        "stun:stun1.l.google.com:19302"
-      ]
+function toast(text) {
+  toastElement.textContent = text;
+  toastElement.classList.add("show");
+
+  clearTimeout(toastElement._timer);
+
+  toastElement._timer = setTimeout(() => {
+    toastElement.classList.remove("show");
+  }, 2200);
+}
+
+function escapeHtml(value) {
+  const div = document.createElement("div");
+  div.textContent = String(value ?? "");
+  return div.innerHTML;
+}
+
+function randomRoomCode() {
+  const a = Math.random()
+    .toString(36)
+    .slice(2, 6)
+    .toUpperCase();
+
+  const b = Math.random()
+    .toString(36)
+    .slice(2, 6)
+    .toUpperCase();
+
+  return `${a}-${b}`;
+}
+
+function formatBytes(bytes) {
+  if (!bytes) return "0 B";
+
+  const units = ["B", "KB", "MB", "GB"];
+
+  const i = Math.min(
+    units.length - 1,
+    Math.floor(
+      Math.log(bytes) /
+      Math.log(1024)
+    )
+  );
+
+  return (
+    (bytes / Math.pow(1024, i)).toFixed(1) +
+    " " +
+    units[i]
+  );
+}
+
+function formatTime(seconds) {
+  if (!Number.isFinite(seconds)) {
+    return "00:00";
+  }
+
+  seconds = Math.max(
+    0,
+    Math.floor(seconds)
+  );
+
+  const h = Math.floor(seconds / 3600);
+
+  const m = Math.floor(
+    (seconds % 3600) / 60
+  );
+
+  const s = seconds % 60;
+
+  if (h) {
+    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }
+
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+/* =========================================================
+   ICE CONFIG
+========================================================= */
+
+async function loadIceConfiguration() {
+  try {
+    const response = await fetch(
+      "/api/ice",
+      {
+        cache: "no-store"
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        "ICE configuration unavailable"
+      );
     }
-  ]
-};
 
+    const data = await response.json();
 
-/*
-  IMPORTANT:
+    rtcConfiguration = {
+      iceServers:
+        Array.isArray(data.iceServers)
+          ? data.iceServers
+          : []
+    };
 
-  STUN is enough for development but NOT enough for
-  production reliability.
+    turnEnabled =
+      Boolean(data.turnEnabled);
 
-  Later add TURN credentials generated by the server.
-*/
+    console.log(
+      "NEXORA ICE:",
+      turnEnabled
+        ? "STUN + TURN"
+        : "STUN only"
+    );
+  }
 
+  catch (error) {
+    console.warn(error);
+
+    rtcConfiguration = {
+      iceServers: [
+        {
+          urls:
+            "stun:stun.l.google.com:19302"
+        }
+      ]
+    };
+
+    turnEnabled = false;
+  }
+}
 
 /* =========================================================
-   URL + SAVED NAME
+   INITIAL URL
 ========================================================= */
 
-const urlParams =
+const params =
   new URLSearchParams(
     location.search
   );
 
-if (urlParams.get("room")) {
+if (params.get("room")) {
   roomInput.value =
-    urlParams.get("room");
+    params.get("room");
 }
 
 const savedName =
@@ -216,134 +280,9 @@ const savedName =
   );
 
 if (savedName) {
-  nameInput.value = savedName;
+  nameInput.value =
+    savedName;
 }
-
-
-/* =========================================================
-   HELPERS
-========================================================= */
-
-function randomRoomCode() {
-  const a =
-    Math.random()
-      .toString(36)
-      .slice(2, 6)
-      .toUpperCase();
-
-  const b =
-    Math.random()
-      .toString(36)
-      .slice(2, 6)
-      .toUpperCase();
-
-  return `${a}-${b}`;
-}
-
-
-function toast(text) {
-  toastElement.textContent = text;
-
-  toastElement.classList.add(
-    "show"
-  );
-
-  clearTimeout(
-    toastElement._timer
-  );
-
-  toastElement._timer =
-    setTimeout(() => {
-      toastElement.classList.remove(
-        "show"
-      );
-    }, 2200);
-}
-
-
-function escapeHtml(value) {
-  const div =
-    document.createElement("div");
-
-  div.textContent =
-    String(value ?? "");
-
-  return div.innerHTML;
-}
-
-
-function formatBytes(bytes) {
-  if (!bytes) return "0 B";
-
-  const units = [
-    "B",
-    "KB",
-    "MB",
-    "GB"
-  ];
-
-  const i =
-    Math.min(
-      units.length - 1,
-      Math.floor(
-        Math.log(bytes) /
-        Math.log(1024)
-      )
-    );
-
-  return (
-    (
-      bytes /
-      Math.pow(1024, i)
-    ).toFixed(1) +
-    " " +
-    units[i]
-  );
-}
-
-
-function formatTime(seconds) {
-  if (!Number.isFinite(seconds)) {
-    return "00:00";
-  }
-
-  seconds =
-    Math.max(
-      0,
-      Math.floor(seconds)
-    );
-
-  const h =
-    Math.floor(
-      seconds / 3600
-    );
-
-  const m =
-    Math.floor(
-      (seconds % 3600) / 60
-    );
-
-  const s =
-    seconds % 60;
-
-  if (h) {
-    return (
-      `${h}:` +
-      `${String(m).padStart(2, "0")}:` +
-      `${String(s).padStart(2, "0")}`
-    );
-  }
-
-  return (
-    `${String(m).padStart(2, "0")}:` +
-    `${String(s).padStart(2, "0")}`
-  );
-}
-
-
-/* =========================================================
-   RANDOM ROOM
-========================================================= */
 
 randomRoomButton.addEventListener(
   "click",
@@ -353,7 +292,6 @@ randomRoomButton.addEventListener(
   }
 );
 
-
 /* =========================================================
    JOIN
 ========================================================= */
@@ -362,7 +300,6 @@ joinButton.addEventListener(
   "click",
   joinRoom
 );
-
 
 async function joinRoom() {
   displayName =
@@ -385,9 +322,10 @@ async function joinRoom() {
   }
 
   joinButton.disabled = true;
-
   joinButton.textContent =
-    "Connecting...";
+    "Preparing connection...";
+
+  await loadIceConfiguration();
 
   try {
     localStream =
@@ -401,11 +339,13 @@ async function joinRoom() {
 
           video: {
             width: {
-              ideal: 1280
+              ideal: 1280,
+              max: 1920
             },
 
             height: {
-              ideal: 720
+              ideal: 720,
+              max: 1080
             },
 
             frameRate: {
@@ -418,7 +358,7 @@ async function joinRoom() {
 
   catch (error) {
     console.warn(
-      "Full media unavailable:",
+      "Video unavailable:",
       error
     );
 
@@ -426,7 +366,11 @@ async function joinRoom() {
       localStream =
         await navigator.mediaDevices
           .getUserMedia({
-            audio: true,
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true
+            },
+
             video: false
           });
 
@@ -439,7 +383,7 @@ async function joinRoom() {
 
     catch {
       toast(
-        "Camera/microphone permission is required."
+        "Please allow microphone access."
       );
 
       joinButton.disabled = false;
@@ -476,8 +420,7 @@ async function joinRoom() {
           "Unable to join."
         );
 
-        joinButton.disabled =
-          false;
+        joinButton.disabled = false;
 
         joinButton.textContent =
           "Enter Room";
@@ -485,62 +428,61 @@ async function joinRoom() {
         return;
       }
 
-      enterApplication(
-        response
+      joinScreen.classList.add(
+        "hidden"
+      );
+
+      app.classList.remove(
+        "hidden"
+      );
+
+      roomLabel.textContent =
+        `Room • ${roomId}`;
+
+      addVideoCard(
+        socket.id,
+        `${displayName} (You)`,
+        localStream,
+        true
+      );
+
+      updateUsers(
+        response.users || []
+      );
+
+      renderQueue(
+        response.queue || []
+      );
+
+      if (response.media?.type) {
+        openRemoteMedia(
+          response.media
+        );
+      }
+
+      setConnectionStatus(
+        turnEnabled
+          ? "Protected"
+          : "Connected",
+        true
+      );
+
+      joinButton.disabled = false;
+
+      joinButton.textContent =
+        "Enter Room";
+
+      toast(
+        turnEnabled
+          ? "Connected • TURN ready"
+          : "Connected • STUN"
       );
     }
   );
 }
 
-
-function enterApplication(
-  response
-) {
-  joinScreen.classList.add(
-    "hidden"
-  );
-
-  app.classList.remove(
-    "hidden"
-  );
-
-  roomLabel.textContent =
-    `Room • ${roomId}`;
-
-  addVideoCard(
-    socket.id,
-    `${displayName} (You)`,
-    localStream,
-    true
-  );
-
-  updateUsers(
-    response.users || []
-  );
-
-  renderQueue(
-    response.queue || []
-  );
-
-  if (response.media?.type) {
-    openRemoteMedia(
-      response.media
-    );
-  }
-
-  joinButton.disabled = false;
-
-  joinButton.textContent =
-    "Enter Room";
-
-  toast(
-    "Welcome to NEXORA"
-  );
-}
-
-
 /* =========================================================
-   WEBRTC PEER
+   WEBRTC CONNECTION ENGINE
 ========================================================= */
 
 function createPeer(
@@ -551,10 +493,7 @@ function createPeer(
     return peers.get(peerId);
   }
 
-  peerNames.set(
-    peerId,
-    name
-  );
+  peerNames.set(peerId, name);
 
   const pc =
     new RTCPeerConnection(
@@ -563,13 +502,23 @@ function createPeer(
 
   const peer = {
     pc,
-    channel: null
+    channel: null,
+
+    stats: {
+      previousBytes: 0,
+      previousTimestamp: 0,
+
+      rtt: null,
+      jitter: null,
+      packetLoss: null,
+      bitrate: null,
+      candidateType: "unknown"
+    },
+
+    reconnectTimer: null
   };
 
-  peers.set(
-    peerId,
-    peer
-  );
+  peers.set(peerId, peer);
 
   if (localStream) {
     localStream
@@ -584,9 +533,7 @@ function createPeer(
 
   pc.onicecandidate =
     (event) => {
-      if (!event.candidate) {
-        return;
-      }
+      if (!event.candidate) return;
 
       socket.emit(
         "signal",
@@ -601,7 +548,6 @@ function createPeer(
         }
       );
     };
-
 
   pc.ontrack =
     (event) => {
@@ -618,7 +564,6 @@ function createPeer(
       );
     };
 
-
   pc.ondatachannel =
     (event) => {
       setupDataChannel(
@@ -627,13 +572,25 @@ function createPeer(
       );
     };
 
-
-  pc.onconnectionstatechange =
+  pc.oniceconnectionstatechange =
     () => {
       const state =
-        pc.connectionState;
+        pc.iceConnectionState;
 
-      if (state === "connected") {
+      console.log(
+        "ICE",
+        peerId,
+        state
+      );
+
+      if (
+        state === "connected" ||
+        state === "completed"
+      ) {
+        clearTimeout(
+          peer.reconnectTimer
+        );
+
         setConnectionStatus(
           "Connected",
           true
@@ -641,23 +598,51 @@ function createPeer(
       }
 
       if (
-        state === "failed" ||
         state === "disconnected"
       ) {
         setConnectionStatus(
-          "Reconnecting...",
+          "Recovering...",
           false
         );
+
+        clearTimeout(
+          peer.reconnectTimer
+        );
+
+        /*
+          Avoid immediately restarting ICE for a tiny
+          Wi-Fi hiccup.
+        */
+
+        peer.reconnectTimer =
+          setTimeout(() => {
+            if (
+              pc.iceConnectionState ===
+              "disconnected"
+            ) {
+              restartPeerIce(
+                peerId
+              );
+            }
+          }, 2500);
       }
 
-      if (state === "failed") {
-        try {
-          pc.restartIce();
-        } catch {}
+      if (
+        state === "failed"
+      ) {
+        restartPeerIce(
+          peerId
+        );
       }
+    };
 
-      if (state === "closed") {
-        removePeer(
+  pc.onconnectionstatechange =
+    () => {
+      if (
+        pc.connectionState ===
+        "failed"
+      ) {
+        restartPeerIce(
           peerId
         );
       }
@@ -666,6 +651,79 @@ function createPeer(
   return peer;
 }
 
+/* =========================================================
+   ICE RESTART
+========================================================= */
+
+async function restartPeerIce(
+  peerId
+) {
+  const peer =
+    peers.get(peerId);
+
+  if (!peer) return;
+
+  const pc = peer.pc;
+
+  if (
+    pc.signalingState ===
+    "closed"
+  ) {
+    return;
+  }
+
+  console.log(
+    "NEXORA ICE restart:",
+    peerId
+  );
+
+  setConnectionStatus(
+    "Repairing connection...",
+    false
+  );
+
+  try {
+    pc.restartIce();
+
+    /*
+      The existing participant generates a restart offer.
+    */
+
+    const offer =
+      await pc.createOffer({
+        iceRestart: true
+      });
+
+    await pc.setLocalDescription(
+      offer
+    );
+
+    socket.emit(
+      "signal",
+      {
+        target: peerId,
+
+        data: {
+          type: "offer",
+          sdp:
+            pc.localDescription,
+          iceRestart: true
+        }
+      }
+    );
+  }
+
+  catch (error) {
+    console.error(
+      "ICE restart failed:",
+      error
+    );
+  }
+}
+
+/* =========================================================
+   OFFER
+========================================================= */
 
 async function createOffer(
   peerId
@@ -694,10 +752,9 @@ async function createOffer(
   const offer =
     await peer.pc.createOffer();
 
-  await peer.pc
-    .setLocalDescription(
-      offer
-    );
+  await peer.pc.setLocalDescription(
+    offer
+  );
 
   socket.emit(
     "signal",
@@ -706,12 +763,12 @@ async function createOffer(
 
       data: {
         type: "offer",
-        sdp: peer.pc.localDescription
+        sdp:
+          peer.pc.localDescription
       }
     }
   );
 }
-
 
 /* =========================================================
    SIGNALING
@@ -720,24 +777,17 @@ async function createOffer(
 socket.on(
   "user-joined",
   async ({ id, name }) => {
-    peerNames.set(
-      id,
-      name
-    );
+    peerNames.set(id, name);
 
     try {
       await createOffer(id);
     }
 
     catch (error) {
-      console.error(
-        "Offer error:",
-        error
-      );
+      console.error(error);
     }
   }
 );
-
 
 socket.on(
   "signal",
@@ -758,20 +808,21 @@ socket.on(
           name
         );
 
-      if (data.type === "offer") {
-        await peer.pc
-          .setRemoteDescription(
-            data.sdp
-          );
+      const pc = peer.pc;
+
+      if (
+        data.type === "offer"
+      ) {
+        await pc.setRemoteDescription(
+          data.sdp
+        );
 
         const answer =
-          await peer.pc
-            .createAnswer();
+          await pc.createAnswer();
 
-        await peer.pc
-          .setLocalDescription(
-            answer
-          );
+        await pc.setLocalDescription(
+          answer
+        );
 
         socket.emit(
           "signal",
@@ -781,8 +832,7 @@ socket.on(
             data: {
               type: "answer",
               sdp:
-                peer.pc
-                  .localDescription
+                pc.localDescription
             }
           }
         );
@@ -791,33 +841,30 @@ socket.on(
       else if (
         data.type === "answer"
       ) {
-        await peer.pc
-          .setRemoteDescription(
-            data.sdp
-          );
+        await pc.setRemoteDescription(
+          data.sdp
+        );
       }
 
       else if (
         data.type === "candidate"
       ) {
         if (data.candidate) {
-          await peer.pc
-            .addIceCandidate(
-              data.candidate
-            );
+          await pc.addIceCandidate(
+            data.candidate
+          );
         }
       }
     }
 
     catch (error) {
       console.error(
-        "WebRTC signaling error:",
+        "Signaling:",
         error
       );
     }
   }
 );
-
 
 socket.on(
   "user-left",
@@ -826,17 +873,13 @@ socket.on(
   }
 );
 
-
 socket.on(
   "room-users",
-  (users) => {
-    updateUsers(users);
-  }
+  updateUsers
 );
 
-
 /* =========================================================
-   VIDEO CARDS
+   VIDEO
 ========================================================= */
 
 function addVideoCard(
@@ -882,8 +925,10 @@ function addVideoCard(
     label.textContent =
       name;
 
-    card.appendChild(video);
-    card.appendChild(label);
+    card.append(
+      video,
+      label
+    );
 
     videoGrid.appendChild(
       card
@@ -891,31 +936,25 @@ function addVideoCard(
   }
 
   const video =
-    card.querySelector(
-      "video"
-    );
+    card.querySelector("video");
 
-  if (
-    video.srcObject !==
-    stream
-  ) {
-    video.srcObject =
-      stream;
-  }
+  video.srcObject =
+    stream;
 
   emptyStage.classList.add(
     "hidden"
   );
 }
 
-
-function removePeer(
-  peerId
-) {
+function removePeer(peerId) {
   const peer =
     peers.get(peerId);
 
   if (peer) {
+    clearTimeout(
+      peer.reconnectTimer
+    );
+
     try {
       peer.channel?.close();
     } catch {}
@@ -926,10 +965,7 @@ function removePeer(
   }
 
   peers.delete(peerId);
-
-  peerNames.delete(
-    peerId
-  );
+  peerNames.delete(peerId);
 
   document
     .querySelector(
@@ -938,34 +974,31 @@ function removePeer(
     ?.remove();
 }
 
-
 /* =========================================================
-   PEOPLE
+   USERS
 ========================================================= */
 
-function updateUsers(users) {
+function updateUsers(users = []) {
   peopleCount.textContent =
     users.length;
 
   peopleList.innerHTML = "";
 
   users.forEach((user) => {
-    const person =
+    const element =
       document.createElement(
         "div"
       );
 
-    person.className =
+    element.className =
       "person";
 
     const initial =
-      String(
-        user.name || "?"
-      )
+      (user.name || "?")
         .charAt(0)
         .toUpperCase();
 
-    person.innerHTML = `
+    element.innerHTML = `
       <div class="avatar">
         ${escapeHtml(initial)}
       </div>
@@ -983,26 +1016,362 @@ function updateUsers(users) {
     `;
 
     peopleList.appendChild(
-      person
+      element
     );
   });
 }
 
+/* =========================================================
+   ADAPTIVE CONNECTION STATISTICS
+========================================================= */
+
+async function collectNetworkStats() {
+  if (peers.size === 0) {
+    return;
+  }
+
+  const all = [];
+
+  for (
+    const [peerId, peer]
+    of peers.entries()
+  ) {
+    try {
+      const reports =
+        await peer.pc.getStats();
+
+      let inbound = null;
+      let candidatePair = null;
+
+      reports.forEach((report) => {
+        if (
+          report.type ===
+            "inbound-rtp" &&
+          report.kind ===
+            "video"
+        ) {
+          inbound = report;
+        }
+
+        if (
+          report.type ===
+            "candidate-pair" &&
+          report.state ===
+            "succeeded" &&
+          report.nominated
+        ) {
+          candidatePair =
+            report;
+        }
+      });
+
+      const stats =
+        peer.stats;
+
+      if (candidatePair) {
+        if (
+          Number.isFinite(
+            candidatePair
+              .currentRoundTripTime
+          )
+        ) {
+          stats.rtt =
+            candidatePair
+              .currentRoundTripTime *
+            1000;
+        }
+      }
+
+      if (inbound) {
+        if (
+          Number.isFinite(
+            inbound.jitter
+          )
+        ) {
+          stats.jitter =
+            inbound.jitter *
+            1000;
+        }
+
+        const lost =
+          Number(
+            inbound.packetsLost ||
+            0
+          );
+
+        const received =
+          Number(
+            inbound.packetsReceived ||
+            0
+          );
+
+        const total =
+          lost + received;
+
+        stats.packetLoss =
+          total > 0
+            ? Math.max(
+                0,
+                lost / total * 100
+              )
+            : 0;
+
+        const bytes =
+          Number(
+            inbound.bytesReceived ||
+            0
+          );
+
+        const timestamp =
+          Number(
+            inbound.timestamp ||
+            0
+          );
+
+        if (
+          stats.previousTimestamp &&
+          timestamp >
+            stats.previousTimestamp
+        ) {
+          const seconds =
+            (
+              timestamp -
+              stats.previousTimestamp
+            ) / 1000;
+
+          stats.bitrate =
+            (
+              bytes -
+              stats.previousBytes
+            ) *
+            8 /
+            seconds /
+            1000;
+        }
+
+        stats.previousBytes =
+          bytes;
+
+        stats.previousTimestamp =
+          timestamp;
+      }
+
+      all.push(stats);
+    }
+
+    catch (error) {
+      console.warn(
+        "getStats failed:",
+        peerId,
+        error
+      );
+    }
+  }
+
+  evaluateNetwork(all);
+}
 
 /* =========================================================
-   MIC
+   NETWORK QUALITY ENGINE
+========================================================= */
+
+function evaluateNetwork(
+  stats
+) {
+  if (!stats.length) return;
+
+  const rtts =
+    stats
+      .map((s) => s.rtt)
+      .filter(Number.isFinite);
+
+  const losses =
+    stats
+      .map((s) => s.packetLoss)
+      .filter(Number.isFinite);
+
+  const jitters =
+    stats
+      .map((s) => s.jitter)
+      .filter(Number.isFinite);
+
+  const avg = (values) =>
+    values.length
+      ? values.reduce(
+          (a, b) => a + b,
+          0
+        ) / values.length
+      : 0;
+
+  const rtt = avg(rtts);
+  const loss = avg(losses);
+  const jitter = avg(jitters);
+
+  let quality = "Excellent";
+
+  if (
+    loss > 8 ||
+    rtt > 600 ||
+    jitter > 100
+  ) {
+    quality = "Poor";
+  }
+
+  else if (
+    loss > 4 ||
+    rtt > 350 ||
+    jitter > 60
+  ) {
+    quality = "Weak";
+  }
+
+  else if (
+    loss > 1.5 ||
+    rtt > 180 ||
+    jitter > 30
+  ) {
+    quality = "Good";
+  }
+
+  updateAdaptiveQuality(
+    quality
+  );
+
+  const latencyText =
+    rtt
+      ? ` • ${Math.round(rtt)}ms`
+      : "";
+
+  connectionText.textContent =
+    `${quality}${latencyText}`;
+
+  connectionDot.style.background =
+    quality === "Poor"
+      ? "#ff4e70"
+      : quality === "Weak"
+        ? "#ffb84d"
+        : "#43e6a5";
+}
+
+/* =========================================================
+   SMART VIDEO QUALITY
+========================================================= */
+
+async function updateAdaptiveQuality(
+  networkQuality
+) {
+  let desired;
+
+  if (
+    networkQuality === "Poor"
+  ) {
+    desired = "LOW";
+  }
+
+  else if (
+    networkQuality === "Weak"
+  ) {
+    desired = "SD";
+  }
+
+  else {
+    desired = "HD";
+  }
+
+  if (
+    desired === currentQuality
+  ) {
+    return;
+  }
+
+  currentQuality = desired;
+
+  for (
+    const peer
+    of peers.values()
+  ) {
+    const sender =
+      peer.pc
+        .getSenders()
+        .find(
+          (sender) =>
+            sender.track?.kind ===
+            "video"
+        );
+
+    if (!sender) continue;
+
+    try {
+      const parameters =
+        sender.getParameters();
+
+      if (!parameters.encodings) {
+        parameters.encodings = [{}];
+      }
+
+      if (desired === "HD") {
+        parameters.encodings[0]
+          .maxBitrate =
+          1_500_000;
+
+        parameters.encodings[0]
+          .scaleResolutionDownBy =
+          1;
+      }
+
+      else if (
+        desired === "SD"
+      ) {
+        parameters.encodings[0]
+          .maxBitrate =
+          650_000;
+
+        parameters.encodings[0]
+          .scaleResolutionDownBy =
+          1.5;
+      }
+
+      else {
+        parameters.encodings[0]
+          .maxBitrate =
+          250_000;
+
+        parameters.encodings[0]
+          .scaleResolutionDownBy =
+          2.5;
+      }
+
+      await sender.setParameters(
+        parameters
+      );
+    }
+
+    catch (error) {
+      console.warn(
+        "Adaptive bitrate:",
+        error
+      );
+    }
+  }
+}
+
+setInterval(
+  collectNetworkStats,
+  3000
+);
+
+/* =========================================================
+   MIC / CAMERA
 ========================================================= */
 
 micButton.addEventListener(
   "click",
   () => {
-    if (!localStream) return;
-
     micEnabled =
       !micEnabled;
 
     localStream
-      .getAudioTracks()
+      ?.getAudioTracks()
       .forEach((track) => {
         track.enabled =
           micEnabled;
@@ -1020,21 +1389,14 @@ micButton.addEventListener(
   }
 );
 
-
-/* =========================================================
-   CAMERA
-========================================================= */
-
 cameraButton.addEventListener(
   "click",
   () => {
-    if (!localStream) return;
-
     cameraEnabled =
       !cameraEnabled;
 
     localStream
-      .getVideoTracks()
+      ?.getVideoTracks()
       .forEach((track) => {
         track.enabled =
           cameraEnabled;
@@ -1051,7 +1413,6 @@ cameraButton.addEventListener(
         : "🚫";
   }
 );
-
 
 /* =========================================================
    SCREEN SHARE
@@ -1070,7 +1431,7 @@ screenButton.addEventListener(
         ?.getDisplayMedia
     ) {
       toast(
-        "Screen sharing isn't supported on this browser."
+        "Screen sharing isn't supported here."
       );
 
       return;
@@ -1082,10 +1443,10 @@ screenButton.addEventListener(
           .getDisplayMedia({
             video: {
               frameRate: {
-                ideal: 30
+                ideal: 30,
+                max: 30
               }
             },
-
             audio: true
           });
 
@@ -1101,16 +1462,15 @@ screenButton.addEventListener(
           peer.pc
             .getSenders()
             .find(
-              (item) =>
-                item.track?.kind ===
+              (sender) =>
+                sender.track?.kind ===
                 "video"
             );
 
         if (sender) {
-          await sender
-            .replaceTrack(
-              screenTrack
-            );
+          await sender.replaceTrack(
+            screenTrack
+          );
         }
       }
 
@@ -1130,9 +1490,7 @@ screenButton.addEventListener(
         "■";
 
       screenTrack.onended =
-        () => {
-          stopScreenShare();
-        };
+        stopScreenShare;
 
       toast(
         "Screen sharing started"
@@ -1140,19 +1498,13 @@ screenButton.addEventListener(
     }
 
     catch (error) {
-      console.log(
-        "Screen share cancelled:",
-        error
-      );
+      console.log(error);
     }
   }
 );
 
-
 async function stopScreenShare() {
-  if (!sharingScreen) {
-    return;
-  }
+  if (!sharingScreen) return;
 
   const cameraTrack =
     localStream
@@ -1167,28 +1519,27 @@ async function stopScreenShare() {
         peer.pc
           .getSenders()
           .find(
-            (item) =>
-              item.track?.kind ===
+            (sender) =>
+              sender.track?.kind ===
               "video"
           );
 
       if (sender) {
-        await sender
-          .replaceTrack(
-            cameraTrack
-          );
+        await sender.replaceTrack(
+          cameraTrack
+        );
       }
     }
   }
 
   screenStream
     ?.getTracks()
-    .forEach((track) => {
-      track.stop();
-    });
+    .forEach(
+      (track) =>
+        track.stop()
+    );
 
   screenStream = null;
-
   sharingScreen = false;
 
   const localVideo =
@@ -1203,12 +1554,7 @@ async function stopScreenShare() {
 
   screenButton.textContent =
     "▣";
-
-  toast(
-    "Screen sharing stopped"
-  );
 }
-
 
 /* =========================================================
    CHAT
@@ -1232,7 +1578,6 @@ messageForm.addEventListener(
     messageInput.value = "";
   }
 );
-
 
 socket.on(
   "chat-message",
@@ -1267,10 +1612,7 @@ socket.on(
 
     item.innerHTML = `
       <div class="message-head">
-        <span>
-          ${escapeHtml(message.name)}
-        </span>
-
+        <span>${escapeHtml(message.name)}</span>
         <span>${time}</span>
       </div>
 
@@ -1279,15 +1621,12 @@ socket.on(
       </div>
     `;
 
-    messages.appendChild(
-      item
-    );
+    messages.appendChild(item);
 
     messages.scrollTop =
       messages.scrollHeight;
   }
 );
-
 
 /* =========================================================
    TABS
@@ -1301,21 +1640,21 @@ document
       () => {
         document
           .querySelectorAll(".tab")
-          .forEach((item) => {
+          .forEach((item) =>
             item.classList.remove(
               "active"
-            );
-          });
+            )
+          );
 
         document
           .querySelectorAll(
             ".tab-content"
           )
-          .forEach((item) => {
+          .forEach((item) =>
             item.classList.remove(
               "active"
-            );
-          });
+            )
+          );
 
         tab.classList.add(
           "active"
@@ -1330,7 +1669,6 @@ document
     );
   });
 
-
 sidebarButton.addEventListener(
   "click",
   () => {
@@ -1340,7 +1678,6 @@ sidebarButton.addEventListener(
   }
 );
 
-
 /* =========================================================
    INVITE
 ========================================================= */
@@ -1348,14 +1685,12 @@ sidebarButton.addEventListener(
 copyButton.addEventListener(
   "click",
   async () => {
-    const inviteUrl =
+    const url =
       `${location.origin}/?room=${encodeURIComponent(roomId)}`;
 
     try {
       await navigator.clipboard
-        .writeText(
-          inviteUrl
-        );
+        .writeText(url);
 
       toast(
         "Invite link copied"
@@ -1363,14 +1698,13 @@ copyButton.addEventListener(
     }
 
     catch {
-      window.prompt(
-        "Copy this invite link:",
-        inviteUrl
+      prompt(
+        "Copy invite:",
+        url
       );
     }
   }
 );
-
 
 /* =========================================================
    REACTIONS
@@ -1384,7 +1718,6 @@ reactionButton.addEventListener(
     );
   }
 );
-
 
 reactionMenu
   .querySelectorAll("button")
@@ -1406,7 +1739,6 @@ reactionMenu
       }
     );
   });
-
 
 socket.on(
   "reaction",
@@ -1436,9 +1768,8 @@ socket.on(
   }
 );
 
-
 /* =========================================================
-   FILE DATA CHANNEL
+   FILE TRANSFER
 ========================================================= */
 
 function setupDataChannel(
@@ -1464,10 +1795,7 @@ function setupDataChannel(
     };
 }
 
-
-async function handleFileMessage(
-  data
-) {
+function handleFileMessage(data) {
   if (
     typeof data === "string"
   ) {
@@ -1524,16 +1852,12 @@ async function handleFileMessage(
     if (!file) return;
 
     file.chunks.push(data);
-
     file.received +=
       data.byteLength;
   }
 }
 
-
-function finishIncomingFile(
-  id
-) {
+function finishIncomingFile(id) {
   const file =
     incomingFiles.get(id);
 
@@ -1550,9 +1874,7 @@ function finishIncomingFile(
     );
 
   const url =
-    URL.createObjectURL(
-      blob
-    );
+    URL.createObjectURL(blob);
 
   addFileItem(
     file.name,
@@ -1568,7 +1890,6 @@ function finishIncomingFile(
   );
 }
 
-
 fileInput.addEventListener(
   "change",
   async () => {
@@ -1577,14 +1898,12 @@ fileInput.addEventListener(
 
     if (!file) return;
 
-    const maxSize =
-      25 * 1024 * 1024;
-
     if (
-      file.size > maxSize
+      file.size >
+      25 * 1024 * 1024
     ) {
       toast(
-        "P2P file transfer currently supports up to 25 MB."
+        "Maximum P2P file size is currently 25 MB."
       );
 
       fileInput.value = "";
@@ -1592,11 +1911,10 @@ fileInput.addEventListener(
       return;
     }
 
-    const openChannels =
+    const channels =
       [...peers.values()]
-        .map(
-          (peer) =>
-            peer.channel
+        .map((peer) =>
+          peer.channel
         )
         .filter(
           (channel) =>
@@ -1604,11 +1922,9 @@ fileInput.addEventListener(
             "open"
         );
 
-    if (
-      openChannels.length === 0
-    ) {
+    if (!channels.length) {
       toast(
-        "No connected participant available for file transfer."
+        "No participant connected for file transfer."
       );
 
       fileInput.value = "";
@@ -1633,7 +1949,7 @@ fileInput.addEventListener(
 
     for (
       const channel
-      of openChannels
+      of channels
     ) {
       channel.send(
         JSON.stringify({
@@ -1685,7 +2001,6 @@ fileInput.addEventListener(
   }
 );
 
-
 function addFileItem(
   name,
   size,
@@ -1707,8 +2022,7 @@ function addFileItem(
 
     <div class="file-meta">
       ${formatBytes(size)}
-      •
-      ${escapeHtml(status)}
+      • ${escapeHtml(status)}
     </div>
   `;
 
@@ -1720,10 +2034,8 @@ function addFileItem(
 
     link.href = url;
     link.download = name;
-
     link.className =
       "file-download";
-
     link.textContent =
       "Save file";
 
@@ -1733,38 +2045,27 @@ function addFileItem(
   filesList.prepend(item);
 }
 
-
 /* =========================================================
-   MEDIA HUB OPEN/CLOSE
+   MEDIA HUB
 ========================================================= */
 
 watchButton.addEventListener(
   "click",
-  () => {
-    watchDialog.showModal();
-  }
+  () =>
+    watchDialog.showModal()
 );
-
 
 openMediaHubButton.addEventListener(
   "click",
-  () => {
-    watchDialog.showModal();
-  }
+  () =>
+    watchDialog.showModal()
 );
-
 
 closeMediaHubButton.addEventListener(
   "click",
-  () => {
-    watchDialog.close();
-  }
+  () =>
+    watchDialog.close()
 );
-
-
-/* =========================================================
-   MEDIA SOURCE TABS
-========================================================= */
 
 document
   .querySelectorAll(
@@ -1778,31 +2079,28 @@ document
           .querySelectorAll(
             ".source-card"
           )
-          .forEach((item) => {
+          .forEach((item) =>
             item.classList.remove(
               "active"
-            );
-          });
+            )
+          );
 
         document
           .querySelectorAll(
             ".source-panel"
           )
-          .forEach((item) => {
+          .forEach((item) =>
             item.classList.remove(
               "active"
-            );
-          });
+            )
+          );
 
         button.classList.add(
           "active"
         );
 
-        const source =
-          button.dataset.source;
-
         $(
-          `${source}Source`
+          `${button.dataset.source}Source`
         ).classList.add(
           "active"
         );
@@ -1810,21 +2108,14 @@ document
     );
   });
 
+/* YOUTUBE */
 
-/* =========================================================
-   YOUTUBE
-========================================================= */
-
-function extractYouTubeId(
-  value
-) {
+function extractYouTubeId(value) {
   try {
-    const url =
-      new URL(value);
+    const url = new URL(value);
 
     if (
-      url.hostname ===
-        "youtu.be" ||
+      url.hostname === "youtu.be" ||
       url.hostname.endsWith(
         ".youtu.be"
       )
@@ -1868,7 +2159,6 @@ function extractYouTubeId(
   return null;
 }
 
-
 loadMediaButton.addEventListener(
   "click",
   () => {
@@ -1891,13 +2181,9 @@ loadMediaButton.addEventListener(
         crypto.randomUUID(),
 
       type: "youtube",
-
-      title:
-        "YouTube Video",
-
+      title: "YouTube Video",
       url,
       videoId,
-
       playing: false,
       currentTime: 0
     };
@@ -1913,14 +2199,10 @@ loadMediaButton.addEventListener(
   }
 );
 
-
-function loadYouTube(
-  media
-) {
+function loadYouTube(media) {
   resetPlayers(false);
 
-  currentMedia =
-    media;
+  currentMedia = media;
 
   watchStage.classList.remove(
     "hidden"
@@ -1962,8 +2244,7 @@ function loadYouTube(
 
           events: {
             onReady(event) {
-              youtubeReady =
-                true;
+              youtubeReady = true;
 
               watchStatus.textContent =
                 "Ready";
@@ -2013,48 +2294,34 @@ function loadYouTube(
       );
   };
 
-  if (
-    window.YT?.Player
-  ) {
+  if (window.YT?.Player) {
     createPlayer();
   }
 
   else {
-    const wait =
+    const timer =
       setInterval(() => {
         if (
           window.YT?.Player
         ) {
-          clearInterval(wait);
-
+          clearInterval(timer);
           createPlayer();
         }
       }, 200);
   }
 }
 
-
 function broadcastYouTubeState(
   playing
 ) {
   if (
-    !currentMedia ||
     !youtubeReady ||
     !youtubePlayer ||
+    !currentMedia ||
     applyingRemoteState
   ) {
     return;
   }
-
-  let currentTime = 0;
-
-  try {
-    currentTime =
-      youtubePlayer
-        .getCurrentTime();
-  }
-
-  catch {}
 
   socket.emit(
     "media-state",
@@ -2066,15 +2333,14 @@ function broadcastYouTubeState(
 
       playing,
 
-      currentTime
+      currentTime:
+        youtubePlayer
+          .getCurrentTime()
     }
   );
 }
 
-
-/* =========================================================
-   DIRECT VIDEO URL
-========================================================= */
+/* DIRECT VIDEO */
 
 loadDirectVideoButton
   .addEventListener(
@@ -2085,14 +2351,6 @@ loadDirectVideoButton
           .value
           .trim();
 
-      if (!value) {
-        toast(
-          "Enter a video URL."
-        );
-
-        return;
-      }
-
       let url;
 
       try {
@@ -2102,7 +2360,7 @@ loadDirectVideoButton
 
       catch {
         toast(
-          "Invalid URL."
+          "Enter a valid video URL."
         );
 
         return;
@@ -2117,28 +2375,25 @@ loadDirectVideoButton
         )
       ) {
         toast(
-          "Only HTTP/HTTPS video URLs are supported."
+          "Only HTTP/HTTPS URLs are supported."
         );
 
         return;
       }
 
-      let title =
-        decodeURIComponent(
-          url.pathname
-            .split("/")
-            .pop() ||
-          "Shared Video"
-        );
-
       const media = {
         id:
           crypto.randomUUID(),
 
-        type:
-          "direct",
+        type: "direct",
 
-        title,
+        title:
+          decodeURIComponent(
+            url.pathname
+              .split("/")
+              .pop() ||
+            "Shared Video"
+          ),
 
         url: value,
 
@@ -2146,9 +2401,7 @@ loadDirectVideoButton
         currentTime: 0
       };
 
-      loadDirectVideo(
-        media
-      );
+      loadDirectVideo(media);
 
       socket.emit(
         "media-load",
@@ -2159,14 +2412,10 @@ loadDirectVideoButton
     }
   );
 
-
-function loadDirectVideo(
-  media
-) {
+function loadDirectVideo(media) {
   resetPlayers(false);
 
-  currentMedia =
-    media;
+  currentMedia = media;
 
   watchStage.classList.remove(
     "hidden"
@@ -2180,8 +2429,7 @@ function loadDirectVideo(
     "VIDEO";
 
   watchTitle.textContent =
-    media.title ||
-    "Shared Video";
+    media.title;
 
   watchStatus.textContent =
     "Loading...";
@@ -2209,22 +2457,9 @@ function loadDirectVideo(
           .catch(() => {});
       }
     };
-
-  sharedVideoPlayer.onerror =
-    () => {
-      watchStatus.textContent =
-        "Video unavailable";
-
-      toast(
-        "This video host may block browser playback."
-      );
-    };
 }
 
-
-/* =========================================================
-   LOCAL CINEMA
-========================================================= */
+/* LOCAL CINEMA */
 
 localCinemaInput.addEventListener(
   "change",
@@ -2234,14 +2469,11 @@ localCinemaInput.addEventListener(
 
     if (!file) return;
 
-    selectedCinemaFile =
-      file;
+    selectedCinemaFile = file;
 
-    selectedLocalFile
-      .classList
-      .remove(
-        "hidden"
-      );
+    selectedLocalFile.classList.remove(
+      "hidden"
+    );
 
     selectedLocalFile.textContent =
       `${file.name} • ${formatBytes(file.size)}`;
@@ -2251,78 +2483,7 @@ localCinemaInput.addEventListener(
   }
 );
 
-
-startLocalCinemaButton
-  .addEventListener(
-    "click",
-    async () => {
-      if (
-        !selectedCinemaFile
-      ) {
-        return;
-      }
-
-      startLocalCinemaButton.disabled =
-        true;
-
-      startLocalCinemaButton.textContent =
-        "Checking video...";
-
-      try {
-        const fingerprint =
-          await createFileFingerprint(
-            selectedCinemaFile
-          );
-
-        const media = {
-          id:
-            crypto.randomUUID(),
-
-          type:
-            "local",
-
-          title:
-            selectedCinemaFile.name,
-
-          fileName:
-            selectedCinemaFile.name,
-
-          fileSize:
-            selectedCinemaFile.size,
-
-          fingerprint,
-
-          playing: false,
-          currentTime: 0
-        };
-
-        loadLocalFile(
-          selectedCinemaFile,
-          media
-        );
-
-        socket.emit(
-          "media-load",
-          media
-        );
-
-        watchDialog.close();
-      }
-
-      finally {
-        startLocalCinemaButton.disabled =
-          false;
-
-        startLocalCinemaButton.textContent =
-          "Start Local Cinema";
-      }
-    }
-  );
-
-
-async function createFileFingerprint(
-  file
-) {
+async function createFileFingerprint(file) {
   const sampleSize =
     Math.min(
       512 * 1024,
@@ -2362,10 +2523,7 @@ async function createFileFingerprint(
       last.byteLength
     );
 
-  combined.set(
-    metadata,
-    0
-  );
+  combined.set(metadata, 0);
 
   combined.set(
     new Uint8Array(first),
@@ -2396,6 +2554,53 @@ async function createFileFingerprint(
     .join("");
 }
 
+startLocalCinemaButton
+  .addEventListener(
+    "click",
+    async () => {
+      if (!selectedCinemaFile) {
+        return;
+      }
+
+      const fingerprint =
+        await createFileFingerprint(
+          selectedCinemaFile
+        );
+
+      const media = {
+        id:
+          crypto.randomUUID(),
+
+        type: "local",
+
+        title:
+          selectedCinemaFile.name,
+
+        fileName:
+          selectedCinemaFile.name,
+
+        fileSize:
+          selectedCinemaFile.size,
+
+        fingerprint,
+
+        playing: false,
+        currentTime: 0
+      };
+
+      loadLocalFile(
+        selectedCinemaFile,
+        media
+      );
+
+      socket.emit(
+        "media-load",
+        media
+      );
+
+      watchDialog.close();
+    }
+  );
 
 function loadLocalFile(
   file,
@@ -2410,12 +2615,9 @@ function loadLocalFile(
   }
 
   localCinemaUrl =
-    URL.createObjectURL(
-      file
-    );
+    URL.createObjectURL(file);
 
-  currentMedia =
-    media;
+  currentMedia = media;
 
   watchStage.classList.remove(
     "hidden"
@@ -2438,62 +2640,37 @@ function loadLocalFile(
     "LOCAL";
 
   watchTitle.textContent =
-    media.title ||
-    file.name;
+    media.title;
 
   watchStatus.textContent =
     "Local Cinema";
-
-  sharedVideoPlayer.onloadedmetadata =
-    () => {
-      if (
-        media.currentTime > 0
-      ) {
-        sharedVideoPlayer.currentTime =
-          media.currentTime;
-      }
-
-      if (media.playing) {
-        sharedVideoPlayer
-          .play()
-          .catch(() => {});
-      }
-    };
 }
 
-
-function showLocalWaiting(
-  media
-) {
+function showLocalWaiting(media) {
   resetPlayers(false);
 
-  currentMedia =
-    media;
+  currentMedia = media;
 
   watchStage.classList.remove(
     "hidden"
   );
 
-  localCinemaWaiting
-    .classList
-    .remove(
-      "hidden"
-    );
+  localCinemaWaiting.classList.remove(
+    "hidden"
+  );
 
   watchTypeBadge.textContent =
     "LOCAL";
 
   watchTitle.textContent =
-    media.title ||
-    "Local Cinema";
+    media.title;
 
   watchStatus.textContent =
     "Select local movie";
 
   localWaitingText.textContent =
-    `Select "${media.fileName}" on this device to join the synchronized movie.`;
+    `Select "${media.fileName}" on this device.`;
 }
-
 
 localJoinInput.addEventListener(
   "change",
@@ -2509,9 +2686,6 @@ localJoinInput.addEventListener(
       return;
     }
 
-    cinemaSyncText.textContent =
-      "Checking file...";
-
     const fingerprint =
       await createFileFingerprint(
         file
@@ -2521,11 +2695,8 @@ localJoinInput.addEventListener(
       fingerprint !==
       currentMedia.fingerprint
     ) {
-      cinemaSyncText.textContent =
-        "Different movie";
-
       toast(
-        "This isn't the matching video file."
+        "This is not the matching video file."
       );
 
       return;
@@ -2536,96 +2707,64 @@ localJoinInput.addEventListener(
       currentMedia
     );
 
-    cinemaSyncText.textContent =
-      "Movie verified";
-
     toast(
-      "Joined Local Cinema"
+      "Local Cinema connected"
     );
   }
 );
 
-
-/* =========================================================
-   REMOTE MEDIA
-========================================================= */
+/* MEDIA RECEIVE */
 
 socket.on(
   "media-load",
-  (media) => {
-    openRemoteMedia(
-      media
-    );
-  }
+  openRemoteMedia
 );
 
+function openRemoteMedia(media) {
+  if (!media?.type) return;
 
-function openRemoteMedia(
-  media
-) {
-  if (!media?.type) {
-    return;
-  }
-
-  currentMedia =
-    media;
+  currentMedia = media;
 
   if (
-    media.type ===
-    "youtube"
+    media.type === "youtube"
   ) {
     loadYouTube(media);
   }
 
   else if (
-    media.type ===
-    "direct"
+    media.type === "direct"
   ) {
     loadDirectVideo(media);
   }
 
   else if (
-    media.type ===
-    "local"
+    media.type === "local"
   ) {
     showLocalWaiting(media);
   }
 }
 
-
-/* =========================================================
-   VIDEO PLAYBACK SYNC
-========================================================= */
+/* MEDIA SYNC */
 
 sharedVideoPlayer.addEventListener(
   "play",
-  () => {
-    broadcastVideoState(
-      true
-    );
-  }
+  () =>
+    broadcastVideoState(true)
 );
-
 
 sharedVideoPlayer.addEventListener(
   "pause",
-  () => {
-    broadcastVideoState(
-      false
-    );
-  }
+  () =>
+    broadcastVideoState(false)
 );
-
 
 sharedVideoPlayer.addEventListener(
   "seeked",
-  () => {
+  () =>
     broadcastVideoState(
       !sharedVideoPlayer.paused
-    );
-  }
+    )
 );
-
 
 function broadcastVideoState(
   playing
@@ -2661,7 +2800,6 @@ function broadcastVideoState(
   );
 }
 
-
 socket.on(
   "media-state",
   async (state) => {
@@ -2673,16 +2811,13 @@ socket.on(
     }
 
     if (
-      state.mediaId &&
-      currentMedia.id &&
       state.mediaId !==
-        currentMedia.id
+      currentMedia.id
     ) {
       return;
     }
 
-    applyingRemoteState =
-      true;
+    applyingRemoteState = true;
 
     try {
       const delay =
@@ -2709,14 +2844,12 @@ socket.on(
         youtubeReady &&
         youtubePlayer
       ) {
-        const current =
-          youtubePlayer
-            .getCurrentTime();
-
         if (
           Math.abs(
-            current - target
-          ) > .75
+            youtubePlayer
+              .getCurrentTime() -
+            target
+          ) > 0.75
         ) {
           youtubePlayer.seekTo(
             target,
@@ -2736,27 +2869,18 @@ socket.on(
       }
 
       else if (
-        [
-          "direct",
-          "local"
-        ].includes(
-          currentMedia.type
-        ) &&
         !sharedVideoPlayer
           .classList
           .contains(
             "hidden"
           )
       ) {
-        const difference =
+        if (
           Math.abs(
             sharedVideoPlayer
               .currentTime -
             target
-          );
-
-        if (
-          difference > .75
+          ) > 0.75
         ) {
           sharedVideoPlayer.currentTime =
             target;
@@ -2769,8 +2893,7 @@ socket.on(
         }
 
         else {
-          sharedVideoPlayer
-            .pause();
+          sharedVideoPlayer.pause();
         }
       }
 
@@ -2790,17 +2913,12 @@ socket.on(
   }
 );
 
-
-/* =========================================================
-   MANUAL SYNC
-========================================================= */
-
 syncMediaButton.addEventListener(
   "click",
   () => {
     if (!currentMedia) {
       toast(
-        "No media is active."
+        "No active media."
       );
 
       return;
@@ -2828,81 +2946,15 @@ syncMediaButton.addEventListener(
       );
     }
 
-    cinemaSyncText.textContent =
-      "Sync sent";
-
     toast(
-      "Playback synchronized"
+      "Sync sent"
     );
   }
 );
 
-
-/* =========================================================
-   PERIODIC SYNC
-========================================================= */
-
 setInterval(
   () => {
-    if (
-      !currentMedia ||
-      watchStage
-        .classList
-        .contains(
-          "hidden"
-        )
-    ) {
-      return;
-    }
-
-    if (
-      currentMedia.type ===
-        "youtube" &&
-      youtubeReady &&
-      youtubePlayer
-    ) {
-      try {
-        if (
-          youtubePlayer
-            .getPlayerState() ===
-          YT.PlayerState.PLAYING
-        ) {
-          broadcastYouTubeState(
-            true
-          );
-        }
-      }
-
-      catch {}
-    }
-
-    else if (
-      [
-        "direct",
-        "local"
-      ].includes(
-        currentMedia.type
-      ) &&
-      !sharedVideoPlayer.paused
-    ) {
-      broadcastVideoState(
-        true
-      );
-    }
-  },
-  5000
-);
-
-
-/* =========================================================
-   MEDIA TIME
-========================================================= */
-
-setInterval(
-  () => {
-    if (!currentMedia) {
-      return;
-    }
+    if (!currentMedia) return;
 
     let current = 0;
     let duration = 0;
@@ -2942,31 +2994,17 @@ setInterval(
   1000
 );
 
-
-/* =========================================================
-   QUEUE
-========================================================= */
-
 socket.on(
   "media-queue",
-  (queue) => {
-    renderQueue(queue);
-  }
+  renderQueue
 );
 
-
-function renderQueue(
-  queue = []
-) {
+function renderQueue(queue = []) {
   mediaQueue.innerHTML = "";
 
   if (!queue.length) {
     mediaQueue.innerHTML =
-      `
-        <div class="empty-queue">
-          Nothing queued yet.
-        </div>
-      `;
+      `<div class="empty-queue">Nothing queued yet.</div>`;
 
     return;
   }
@@ -2984,45 +3022,24 @@ function renderQueue(
         "queue-item";
 
       const icon =
-        media.type ===
-          "youtube"
+        media.type === "youtube"
           ? "▶"
-          : media.type ===
-            "local"
+          : media.type === "local"
             ? "🎬"
             : "🔗";
 
       item.innerHTML = `
-        <div class="queue-icon">
-          ${icon}
-        </div>
+        <div class="queue-icon">${icon}</div>
 
         <div class="queue-info">
-          <strong>
-            ${escapeHtml(
-              media.title ||
-              "Shared Media"
-            )}
-          </strong>
-
-          <span>
-            ${escapeHtml(
-              media.type
-            )}
-          </span>
+          <strong>${escapeHtml(media.title)}</strong>
+          <span>${escapeHtml(media.type)}</span>
         </div>
       `;
 
-      mediaQueue.appendChild(
-        item
-      );
+      mediaQueue.appendChild(item);
     });
 }
-
-
-/* =========================================================
-   FULLSCREEN
-========================================================= */
 
 fullscreenMediaButton
   .addEventListener(
@@ -3044,12 +3061,11 @@ fullscreenMediaButton
 
       catch {
         toast(
-          "Fullscreen isn't available here."
+          "Fullscreen unavailable."
         );
       }
     }
   );
-
 
 closeWatchButton.addEventListener(
   "click",
@@ -3059,11 +3075,6 @@ closeWatchButton.addEventListener(
     );
   }
 );
-
-
-/* =========================================================
-   RESET MEDIA PLAYERS
-========================================================= */
 
 function resetPlayers(
   revokeLocal = false
@@ -3075,7 +3086,6 @@ function resetPlayers(
   catch {}
 
   youtubePlayer = null;
-
   youtubeReady = false;
 
   youtubeContainer.innerHTML =
@@ -3092,23 +3102,17 @@ function resetPlayers(
   catch {}
 
   sharedVideoPlayer
-    .removeAttribute(
-      "src"
-    );
+    .removeAttribute("src");
 
   sharedVideoPlayer.load();
 
-  sharedVideoPlayer
-    .classList
-    .add(
-      "hidden"
-    );
+  sharedVideoPlayer.classList.add(
+    "hidden"
+  );
 
-  localCinemaWaiting
-    .classList
-    .add(
-      "hidden"
-    );
+  localCinemaWaiting.classList.add(
+    "hidden"
+  );
 
   if (
     revokeLocal &&
@@ -3122,9 +3126,8 @@ function resetPlayers(
   }
 }
 
-
 /* =========================================================
-   CONNECTION
+   SOCKET STATUS + RECONNECT
 ========================================================= */
 
 function setConnectionStatus(
@@ -3138,13 +3141,7 @@ function setConnectionStatus(
     good
       ? "#43e6a5"
       : "#ffb84d";
-
-  connectionDot.style.boxShadow =
-    good
-      ? "0 0 9px #43e6a5"
-      : "0 0 9px #ffb84d";
 }
-
 
 socket.on(
   "connect",
@@ -3156,7 +3153,6 @@ socket.on(
   }
 );
 
-
 socket.on(
   "disconnect",
   () => {
@@ -3167,34 +3163,19 @@ socket.on(
   }
 );
 
-
-/* =========================================================
-   SOCKET RECONNECT
-
-   Socket.IO gets a new socket ID after reconnect.
-========================================================= */
-
 socket.io.on(
   "reconnect",
   () => {
-    setConnectionStatus(
-      "Connected",
-      true
-    );
-
     if (
       !roomId ||
-      !displayName ||
-      reconnectingRoom
+      !displayName
     ) {
       return;
     }
 
-    reconnectingRoom = true;
-
     /*
-      Old peers use the old socket identity,
-      so clear them before rejoining.
+      New Socket.IO connection = new socket ID.
+      Rebuild the peer graph.
     */
 
     for (
@@ -3212,20 +3193,9 @@ socket.io.on(
       },
 
       (response) => {
-        reconnectingRoom =
-          false;
-
         if (!response?.ok) {
-          toast(
-            "Unable to restore room."
-          );
-
           return;
         }
-
-        /*
-          Rebuild our local card because socket.id changed.
-        */
 
         document
           .querySelectorAll(
@@ -3252,13 +3222,55 @@ socket.io.on(
         );
 
         toast(
-          "Room restored"
+          "Connection restored"
         );
       }
     );
   }
 );
 
+/* =========================================================
+   NETWORK CHANGE DETECTION
+========================================================= */
+
+window.addEventListener(
+  "online",
+  () => {
+    setConnectionStatus(
+      "Network restored",
+      false
+    );
+
+    /*
+      Give the network stack a moment to settle,
+      then repair every peer.
+    */
+
+    setTimeout(
+      () => {
+        for (
+          const peerId
+          of peers.keys()
+        ) {
+          restartPeerIce(
+            peerId
+          );
+        }
+      },
+      1200
+    );
+  }
+);
+
+window.addEventListener(
+  "offline",
+  () => {
+    setConnectionStatus(
+      "Offline",
+      false
+    );
+  }
+);
 
 /* =========================================================
    LEAVE

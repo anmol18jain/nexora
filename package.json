@@ -1,7 +1,7 @@
 {
   "name": "nexora",
-  "version": "2.0.0",
-  "description": "NEXORA - Call, share and watch together",
+  "version": "3.0.0",
+  "description": "NEXORA real-time communication and shared media platform",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

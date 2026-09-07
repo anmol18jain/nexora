@@ -15,24 +15,90 @@ const io = new Server(server, {
     methods: ["GET", "POST"]
   },
   maxHttpBufferSize: 10 * 1024 * 1024,
-  pingTimeout: 20000,
-  pingInterval: 25000
+  pingInterval: 15000,
+  pingTimeout: 20000
 });
 
 app.disable("x-powered-by");
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
+const rooms = new Map();
+
+/* =========================================================
+   TURN / ICE CONFIGURATION
+========================================================= */
+
+function getIceServers() {
+  const iceServers = [
+    {
+      urls: [
+        "stun:stun.l.google.com:19302",
+        "stun:stun1.l.google.com:19302"
+      ]
+    }
+  ];
+
+  /*
+    Configure these as Render Environment Variables:
+
+    TURN_URL
+    TURN_USERNAME
+    TURN_CREDENTIAL
+
+    Example TURN_URL:
+    turn:turn.example.com:3478
+
+    Never put real TURN credentials in GitHub.
+  */
+
+  if (
+    process.env.TURN_URL &&
+    process.env.TURN_USERNAME &&
+    process.env.TURN_CREDENTIAL
+  ) {
+    iceServers.push({
+      urls: process.env.TURN_URL,
+      username: process.env.TURN_USERNAME,
+      credential: process.env.TURN_CREDENTIAL
+    });
+  }
+
+  return iceServers;
+}
+
+app.get("/api/ice", (req, res) => {
+  res.set("Cache-Control", "no-store");
+
+  res.json({
+    iceServers: getIceServers(),
+    turnEnabled: Boolean(
+      process.env.TURN_URL &&
+      process.env.TURN_USERNAME &&
+      process.env.TURN_CREDENTIAL
+    )
+  });
+});
+
 app.get("/health", (req, res) => {
   res.json({
     ok: true,
     app: "NEXORA",
-    version: "2.0.0",
+    version: "3.0.0",
+    socketConnections: io.engine.clientsCount,
+    rooms: rooms.size,
+    turnConfigured: Boolean(
+      process.env.TURN_URL &&
+      process.env.TURN_USERNAME &&
+      process.env.TURN_CREDENTIAL
+    ),
     time: new Date().toISOString()
   });
 });
 
-const rooms = new Map();
+/* =========================================================
+   HELPERS
+========================================================= */
 
 function cleanRoomId(value) {
   return String(value || "")
@@ -84,11 +150,13 @@ function leaveRoom(socket) {
       id: socket.id
     });
 
-    io.to(roomId).emit("room-users", getUsers(room));
+    io.to(roomId).emit(
+      "room-users",
+      getUsers(room)
+    );
 
     if (room.users.size === 0) {
       rooms.delete(roomId);
-      console.log(`[ROOM CLOSED] ${roomId}`);
     }
   }
 
@@ -100,12 +168,18 @@ function leaveRoom(socket) {
   socket.data.name = null;
 }
 
+/* =========================================================
+   SOCKET.IO
+========================================================= */
+
 io.on("connection", (socket) => {
-  console.log(`[CONNECTED] ${socket.id}`);
+  console.log("[CONNECTED]", socket.id);
 
   socket.on("join-room", (payload = {}, callback) => {
     const respond =
-      typeof callback === "function" ? callback : () => {};
+      typeof callback === "function"
+        ? callback
+        : () => {};
 
     const roomId = cleanRoomId(payload.roomId);
     const name = cleanName(payload.name);
@@ -115,6 +189,7 @@ io.on("connection", (socket) => {
         ok: false,
         error: "Invalid room ID."
       });
+
       return;
     }
 
@@ -140,7 +215,8 @@ io.on("connection", (socket) => {
       roomId,
       users: getUsers(room),
       media: room.media,
-      queue: room.queue
+      queue: room.queue,
+      turnEnabled: getIceServers().length > 1
     });
 
     socket.to(roomId).emit("user-joined", {
@@ -148,12 +224,14 @@ io.on("connection", (socket) => {
       name
     });
 
-    io.to(roomId).emit("room-users", getUsers(room));
-
-    console.log(`[JOIN] ${name} -> ${roomId}`);
+    io.to(roomId).emit(
+      "room-users",
+      getUsers(room)
+    );
   });
 
-  // WebRTC signaling
+  /* WebRTC signaling */
+
   socket.on("signal", (payload = {}) => {
     if (!payload.target || !payload.data) return;
     if (payload.target === socket.id) return;
@@ -165,7 +243,8 @@ io.on("connection", (socket) => {
     });
   });
 
-  // Chat
+  /* Chat */
+
   socket.on("chat-message", (payload = {}) => {
     const roomId = socket.data.roomId;
 
@@ -186,13 +265,21 @@ io.on("connection", (socket) => {
     });
   });
 
-  // Reactions
+  /* Reactions */
+
   socket.on("reaction", (payload = {}) => {
     const roomId = socket.data.roomId;
 
     if (!roomId) return;
 
-    const allowed = ["❤️", "🔥", "👏", "😂", "🎉", "👍"];
+    const allowed = [
+      "❤️",
+      "🔥",
+      "👏",
+      "😂",
+      "🎉",
+      "👍"
+    ];
 
     if (!allowed.includes(payload.emoji)) return;
 
@@ -203,7 +290,10 @@ io.on("connection", (socket) => {
     });
   });
 
-  // Media Hub
+  /* =======================================================
+     MEDIA HUB
+  ======================================================= */
+
   socket.on("media-load", (payload = {}) => {
     const roomId = socket.data.roomId;
     if (!roomId) return;
@@ -211,20 +301,27 @@ io.on("connection", (socket) => {
     const room = rooms.get(roomId);
     if (!room) return;
 
-    const allowedTypes = ["youtube", "direct", "local"];
+    const allowedTypes = [
+      "youtube",
+      "direct",
+      "local"
+    ];
 
     if (!allowedTypes.includes(payload.type)) return;
 
     const media = {
-      id: String(payload.id || crypto.randomUUID()).slice(0, 100),
+      id: String(
+        payload.id || crypto.randomUUID()
+      ).slice(0, 100),
 
       type: payload.type,
 
-      title: String(payload.title || "Shared Media").slice(0, 300),
+      title: String(
+        payload.title || "Shared Media"
+      ).slice(0, 300),
 
       playing: false,
       currentTime: 0,
-
       updatedAt: Date.now()
     };
 
@@ -255,20 +352,24 @@ io.on("connection", (socket) => {
       room.queue = room.queue.slice(-20);
     }
 
-    socket.to(roomId).emit("media-load", media);
+    socket.to(roomId).emit(
+      "media-load",
+      media
+    );
 
-    io.to(roomId).emit("media-queue", room.queue);
+    io.to(roomId).emit(
+      "media-queue",
+      room.queue
+    );
   });
 
-  // Media synchronization
   socket.on("media-state", (payload = {}) => {
     const roomId = socket.data.roomId;
-
     if (!roomId) return;
 
     const room = rooms.get(roomId);
 
-    if (!room || !room.media) return;
+    if (!room?.media) return;
 
     if (
       payload.mediaId &&
@@ -278,23 +379,30 @@ io.on("connection", (socket) => {
       return;
     }
 
-    const currentTime = Number(payload.currentTime);
+    const currentTime =
+      Number(payload.currentTime);
 
-    room.media.playing = Boolean(payload.playing);
+    room.media.playing =
+      Boolean(payload.playing);
 
-    room.media.currentTime = Number.isFinite(currentTime)
-      ? Math.max(0, currentTime)
-      : 0;
+    room.media.currentTime =
+      Number.isFinite(currentTime)
+        ? Math.max(0, currentTime)
+        : 0;
 
-    room.media.updatedAt = Date.now();
+    room.media.updatedAt =
+      Date.now();
 
-    socket.to(roomId).emit("media-state", {
-      mediaId: room.media.id,
-      type: room.media.type,
-      playing: room.media.playing,
-      currentTime: room.media.currentTime,
-      sentAt: Date.now()
-    });
+    socket.to(roomId).emit(
+      "media-state",
+      {
+        mediaId: room.media.id,
+        type: room.media.type,
+        playing: room.media.playing,
+        currentTime: room.media.currentTime,
+        sentAt: Date.now()
+      }
+    );
   });
 
   socket.on("leave-room", () => {
@@ -302,10 +410,19 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", (reason) => {
-    console.log(`[DISCONNECTED] ${socket.id}: ${reason}`);
+    console.log(
+      "[DISCONNECTED]",
+      socket.id,
+      reason
+    );
+
     leaveRoom(socket);
   });
 });
+
+/* =========================================================
+   SPA FALLBACK
+========================================================= */
 
 app.use((req, res, next) => {
   if (req.path.startsWith("/socket.io/")) {
@@ -316,27 +433,33 @@ app.use((req, res, next) => {
     return res.status(404).send("Not found");
   }
 
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+  res.sendFile(
+    path.join(
+      __dirname,
+      "public",
+      "index.html"
+    )
+  );
 });
 
-process.on("unhandledRejection", (reason) => {
-  console.error("Unhandled rejection:", reason);
-});
-
-process.on("uncaughtException", (error) => {
-  console.error("Uncaught exception:", error);
-});
+/* =========================================================
+   START
+========================================================= */
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log("");
   console.log("======================================");
-  console.log("          NEXORA 2.0 ONLINE");
+  console.log("       NEXORA CONNECTION ENGINE");
   console.log("======================================");
-  console.log(`Local:     http://localhost:${PORT}`);
-  console.log(`Health:    http://localhost:${PORT}/health`);
-  console.log("Socket.IO: READY");
-  console.log("WebRTC:    READY");
-  console.log("Media Hub: READY");
+  console.log(`Local:  http://localhost:${PORT}`);
+  console.log("Socket: READY");
+  console.log("WebRTC: READY");
+  console.log(
+    `TURN:   ${
+      getIceServers().length > 1
+        ? "CONFIGURED"
+        : "NOT CONFIGURED"
+    }`
+  );
   console.log("======================================");
-  console.log("");
 });
