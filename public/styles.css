@@ -2614,3 +2614,579 @@ label {
   }
 
 }
+/* =========================================================
+   NEXORA STAGE MODE
+========================================================= */
+
+.stage-toolbar {
+  position: absolute;
+
+  z-index: 18;
+
+  left: 12px;
+  top: 12px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 15px;
+
+  padding: 6px;
+
+  border:
+    1px solid rgba(255,255,255,.08);
+
+  border-radius: 13px;
+
+  background:
+    rgba(8,9,15,.72);
+
+  backdrop-filter:
+    blur(16px);
+
+  box-shadow:
+    0 10px 30px
+    rgba(0,0,0,.22);
+}
+
+
+.stage-toolbar-left {
+  padding-left: 5px;
+}
+
+
+.stage-mode-indicator {
+  display: flex;
+  align-items: center;
+
+  gap: 6px;
+
+  color: #b8bbca;
+
+  font-size: 8px;
+
+  white-space: nowrap;
+}
+
+
+.stage-live-dot {
+  width: 5px;
+  height: 5px;
+
+  border-radius: 50%;
+
+  background: #43e6a5;
+
+  box-shadow:
+    0 0 7px #43e6a5;
+}
+
+
+.stage-toolbar-actions {
+  display: flex;
+
+  gap: 3px;
+}
+
+
+.stage-tool {
+  min-width: 31px;
+  height: 31px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 5px;
+
+  padding:
+    0 8px;
+
+  border: 0;
+
+  border-radius: 9px;
+
+  background: transparent;
+
+  color: #9296a8;
+
+  font-size: 9px;
+}
+
+
+.stage-tool:hover {
+  background:
+    rgba(255,255,255,.07);
+
+  color: white;
+}
+
+
+.stage-tool.active {
+  background:
+    rgba(128,108,255,.14);
+
+  color: #c0b8ff;
+}
+
+
+/* =========================================================
+   VIDEO CARD ACTIONS
+========================================================= */
+
+.participant-card-actions {
+  position: absolute;
+
+  z-index: 8;
+
+  right: 9px;
+  top: 9px;
+
+  display: flex;
+
+  gap: 4px;
+
+  opacity: 0;
+
+  transform:
+    translateY(-4px);
+
+  transition:
+    opacity .16s ease,
+    transform .16s ease;
+}
+
+
+.video-card:hover
+.participant-card-actions,
+.video-card:focus-within
+.participant-card-actions {
+  opacity: 1;
+
+  transform:
+    translateY(0);
+}
+
+
+.participant-pin,
+.participant-fullscreen {
+  width: 29px;
+  height: 29px;
+
+  display: grid;
+  place-items: center;
+
+  border:
+    1px solid
+    rgba(255,255,255,.09);
+
+  border-radius: 9px;
+
+  background:
+    rgba(0,0,0,.55);
+
+  backdrop-filter:
+    blur(10px);
+
+  color: white;
+
+  font-size: 11px;
+
+  cursor: pointer;
+}
+
+
+.participant-pin.active {
+  border-color:
+    rgba(128,108,255,.65);
+
+  background:
+    rgba(128,108,255,.3);
+}
+
+
+/* =========================================================
+   SPEAKING
+========================================================= */
+
+.video-card {
+  transition:
+    border-color .2s ease,
+    box-shadow .2s ease,
+    transform .25s ease;
+}
+
+
+.video-card.participant-speaking {
+  border-color:
+    rgba(67,230,165,.65);
+
+  box-shadow:
+    0 0 0 1px
+      rgba(67,230,165,.12),
+    0 0 25px
+      rgba(67,230,165,.08);
+}
+
+
+.speaking-badge {
+  position: absolute;
+
+  z-index: 7;
+
+  right: 10px;
+  bottom: 10px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 5px;
+
+  padding:
+    5px 7px;
+
+  border-radius: 8px;
+
+  background:
+    rgba(6,18,14,.75);
+
+  color: #77edbd;
+
+  font-size: 7px;
+  font-weight: 700;
+
+  opacity: 0;
+
+  transform:
+    translateY(4px);
+
+  transition: .16s ease;
+}
+
+
+.speaking-badge span {
+  width: 5px;
+  height: 5px;
+
+  border-radius: 50%;
+
+  background: #43e6a5;
+
+  box-shadow:
+    0 0 6px #43e6a5;
+}
+
+
+.participant-speaking
+.speaking-badge {
+  opacity: 1;
+
+  transform:
+    translateY(0);
+}
+
+
+/* =========================================================
+   STAGE LAYOUT
+========================================================= */
+
+.nexora-stage-mode
+.video-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      6,
+      minmax(0,1fr)
+    );
+
+  grid-template-rows:
+    minmax(0,1fr)
+    105px;
+
+  gap: 8px;
+
+  padding:
+    52px 9px 9px;
+}
+
+
+.nexora-stage-mode
+.video-card.stage-primary {
+  grid-column:
+    1 / -1;
+
+  grid-row:
+    1;
+
+  min-height: 0;
+
+  border-radius: 17px;
+}
+
+
+.nexora-stage-mode
+.video-card.stage-primary video {
+  object-fit: contain;
+
+  background:
+    #050609;
+}
+
+
+.nexora-stage-mode
+.video-card.stage-secondary {
+  grid-row: 2;
+
+  min-height: 0;
+
+  border-radius: 12px;
+}
+
+
+.nexora-stage-mode
+.video-card.stage-secondary video {
+  object-fit: cover;
+}
+
+
+.nexora-stage-mode
+.video-card.stage-secondary
+.video-name {
+  left: 6px;
+  bottom: 6px;
+
+  padding:
+    4px 6px;
+
+  font-size: 7px;
+}
+
+
+.nexora-stage-mode
+.video-card.stage-secondary
+.speaking-badge {
+  display: none;
+}
+
+
+/*
+  Filmstrip positioning.
+*/
+
+.nexora-stage-mode
+.video-card.stage-secondary:nth-child(2) {
+  grid-column: 1;
+}
+
+.nexora-stage-mode
+.video-card.stage-secondary:nth-child(3) {
+  grid-column: 2;
+}
+
+.nexora-stage-mode
+.video-card.stage-secondary:nth-child(4) {
+  grid-column: 3;
+}
+
+.nexora-stage-mode
+.video-card.stage-secondary:nth-child(5) {
+  grid-column: 4;
+}
+
+.nexora-stage-mode
+.video-card.stage-secondary:nth-child(6) {
+  grid-column: 5;
+}
+
+.nexora-stage-mode
+.video-card.stage-secondary:nth-child(7) {
+  grid-column: 6;
+}
+
+
+/* =========================================================
+   GRID MODE
+========================================================= */
+
+.nexora-grid-mode
+.video-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(
+        min(280px,100%),
+        1fr
+      )
+    );
+
+  grid-template-rows: none;
+
+  gap: 9px;
+
+  padding:
+    52px 9px 9px;
+}
+
+
+.nexora-grid-mode
+.video-card {
+  min-height: 180px;
+
+  grid-column: auto !important;
+  grid-row: auto !important;
+}
+
+
+.nexora-grid-mode
+.video-card video {
+  object-fit: cover;
+}
+
+
+/* =========================================================
+   MEDIA PRIORITY
+========================================================= */
+
+.watch-stage:not(.hidden) {
+  z-index: 30;
+}
+
+
+.watch-stage:not(.hidden)
+~ .reaction-layer {
+  z-index: 35;
+}
+
+
+/* =========================================================
+   FULLSCREEN PARTICIPANT
+========================================================= */
+
+.video-card:fullscreen {
+  width: 100vw;
+  height: 100vh;
+
+  border: 0;
+  border-radius: 0;
+
+  background: black;
+}
+
+
+.video-card:fullscreen video {
+  width: 100%;
+  height: 100%;
+
+  object-fit: contain;
+}
+
+
+/* =========================================================
+   STAGE FULLSCREEN
+========================================================= */
+
+.stage:fullscreen {
+  width: 100vw;
+  height: 100vh;
+
+  border: 0;
+  border-radius: 0;
+
+  background: #030407;
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 700px) {
+
+  .stage-toolbar {
+    left: 7px;
+    right: 7px;
+    top: 7px;
+
+    padding: 5px;
+  }
+
+
+  .stage-tool {
+    min-width: 29px;
+    height: 29px;
+
+    padding:
+      0 6px;
+  }
+
+
+  .stage-tool span {
+    display: none;
+  }
+
+
+  .nexora-stage-mode
+  .video-grid {
+    grid-template-columns:
+      repeat(4,minmax(0,1fr));
+
+    grid-template-rows:
+      minmax(0,1fr)
+      85px;
+
+    padding:
+      45px 6px 6px;
+
+    gap: 5px;
+  }
+
+
+  .nexora-stage-mode
+  .video-card.stage-secondary {
+    min-width: 0;
+
+    border-radius: 9px;
+  }
+
+
+  .participant-card-actions {
+    opacity: 1;
+
+    transform: none;
+  }
+
+
+  .participant-pin,
+  .participant-fullscreen {
+    width: 26px;
+    height: 26px;
+
+    font-size: 9px;
+  }
+
+
+  .nexora-grid-mode
+  .video-grid {
+    padding:
+      45px 6px 6px;
+
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0,1fr)
+      );
+
+    gap: 5px;
+  }
+
+
+  .nexora-grid-mode
+  .video-card {
+    min-height: 130px;
+  }
+
+}
