@@ -1986,3 +1986,631 @@ label {
   }
 
 }
+/* =========================================================
+   NEXORA NETWORK DOCTOR
+========================================================= */
+
+.network-pill {
+  cursor: pointer;
+
+  transition:
+    background .18s ease,
+    border-color .18s ease,
+    transform .18s ease;
+}
+
+.network-pill:hover {
+  transform: translateY(-1px);
+
+  background:
+    rgba(255,255,255,.07);
+
+  border-color:
+    rgba(255,255,255,.15);
+}
+
+
+.doctor-backdrop {
+  position: fixed;
+
+  z-index: 499;
+
+  inset: 0;
+
+  background:
+    rgba(0,0,0,.55);
+
+  backdrop-filter:
+    blur(5px);
+}
+
+
+.network-doctor {
+  position: fixed;
+
+  z-index: 500;
+
+  top: 0;
+  right: 0;
+
+  width:
+    min(420px,100vw);
+
+  height: 100vh;
+
+  overflow-y: auto;
+
+  padding: 22px;
+
+  border-left:
+    1px solid
+    rgba(255,255,255,.1);
+
+  background:
+    linear-gradient(
+      180deg,
+      #121421,
+      #090a11
+    );
+
+  box-shadow:
+    -25px 0 80px
+    rgba(0,0,0,.55);
+
+  transform:
+    translateX(105%);
+
+  transition:
+    transform .25s
+    cubic-bezier(.22,.8,.22,1);
+}
+
+
+.network-doctor.open {
+  transform:
+    translateX(0);
+}
+
+
+.doctor-header {
+  display: flex;
+
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 20px;
+
+  padding-bottom: 18px;
+
+  border-bottom:
+    1px solid var(--border);
+}
+
+
+.doctor-kicker {
+  color: #9e91ff;
+
+  font-size: 8px;
+  font-weight: 800;
+
+  letter-spacing: .17em;
+}
+
+
+.doctor-header h2 {
+  margin:
+    5px 0 4px;
+
+  font-size: 23px;
+
+  letter-spacing:
+    -.025em;
+}
+
+
+.doctor-header p {
+  margin: 0;
+
+  color: var(--muted);
+
+  font-size: 9px;
+}
+
+
+.doctor-close {
+  width: 36px;
+  height: 36px;
+
+  flex-shrink: 0;
+
+  border:
+    1px solid var(--border);
+
+  border-radius: 11px;
+
+  background:
+    rgba(255,255,255,.05);
+
+  color: white;
+
+  font-size: 20px;
+
+  cursor: pointer;
+}
+
+
+/* HEALTH */
+
+.doctor-health-card {
+  display: flex;
+
+  align-items: center;
+
+  gap: 14px;
+
+  margin-top: 18px;
+
+  padding: 15px;
+
+  border:
+    1px solid var(--border);
+
+  border-radius: 16px;
+
+  background:
+    radial-gradient(
+      circle at left,
+      rgba(67,230,165,.07),
+      transparent 60%
+    ),
+    rgba(255,255,255,.025);
+}
+
+
+.doctor-health-orb {
+  width: 50px;
+  height: 50px;
+
+  flex-shrink: 0;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 15px;
+
+  background:
+    rgba(67,230,165,.08);
+}
+
+
+.doctor-health-dot {
+  width: 13px;
+  height: 13px;
+
+  border-radius: 50%;
+
+  background: #9296a8;
+
+  box-shadow:
+    0 0 14px
+    rgba(146,150,168,.5);
+}
+
+
+.doctor-label {
+  display: block;
+
+  color: var(--muted);
+
+  font-size: 7px;
+  font-weight: 800;
+
+  letter-spacing: .13em;
+}
+
+
+.doctor-health-card strong {
+  display: block;
+
+  margin-top: 3px;
+
+  font-size: 15px;
+}
+
+
+.doctor-health-card small {
+  display: block;
+
+  margin-top: 3px;
+
+  color: var(--muted);
+
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+
+/* SECTION */
+
+.doctor-section {
+  margin-top: 16px;
+
+  padding: 15px;
+
+  border:
+    1px solid var(--border);
+
+  border-radius: 16px;
+
+  background:
+    rgba(255,255,255,.022);
+}
+
+
+.doctor-section-heading {
+  display: flex;
+
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 12px;
+
+  margin-bottom: 13px;
+}
+
+
+.doctor-section-heading strong,
+.doctor-section-heading span {
+  display: block;
+}
+
+
+.doctor-section-heading strong {
+  font-size: 11px;
+}
+
+
+.doctor-section-heading span {
+  margin-top: 2px;
+
+  color: var(--muted);
+
+  font-size: 8px;
+}
+
+
+.doctor-live {
+  padding:
+    4px 6px;
+
+  border-radius: 7px;
+
+  background:
+    rgba(67,230,165,.08);
+
+  color:
+    #73edbb !important;
+
+  font-size:
+    6px !important;
+
+  font-weight: 900;
+
+  letter-spacing: .12em;
+}
+
+
+/* METRICS */
+
+.doctor-metrics {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2,1fr);
+
+  gap: 7px;
+}
+
+
+.doctor-metric {
+  padding: 11px;
+
+  border:
+    1px solid
+    rgba(255,255,255,.055);
+
+  border-radius: 12px;
+
+  background:
+    rgba(0,0,0,.14);
+}
+
+
+.doctor-metric span,
+.doctor-metric strong,
+.doctor-metric small {
+  display: block;
+}
+
+
+.doctor-metric span {
+  color: var(--muted);
+
+  font-size: 7px;
+
+  text-transform: uppercase;
+
+  letter-spacing: .08em;
+}
+
+
+.doctor-metric strong {
+  margin-top: 5px;
+
+  font-size: 17px;
+}
+
+
+.doctor-metric small {
+  margin-top: 2px;
+
+  color: #686c7d;
+
+  font-size: 7px;
+}
+
+
+/* ROUTE */
+
+.doctor-route {
+  display: flex;
+
+  align-items: center;
+
+  margin:
+    7px 0 14px;
+}
+
+
+.route-node {
+  width: 48px;
+  height: 48px;
+
+  display: grid;
+  place-items: center;
+
+  flex-shrink: 0;
+
+  border-radius: 14px;
+
+  border:
+    1px solid
+    rgba(128,108,255,.25);
+
+  background:
+    rgba(128,108,255,.08);
+
+  color: #b9b0ff;
+
+  font-size: 7px;
+  font-weight: 900;
+}
+
+
+.route-line {
+  position: relative;
+
+  flex: 1;
+
+  height: 1px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #806cff,
+      #43e6a5
+    );
+}
+
+
+.route-line span {
+  position: absolute;
+
+  left: 50%;
+  top: 50%;
+
+  transform:
+    translate(-50%,-50%);
+
+  padding:
+    3px 7px;
+
+  border:
+    1px solid var(--border);
+
+  border-radius: 999px;
+
+  background: #10121b;
+
+  color: var(--muted);
+
+  font-size: 7px;
+
+  white-space: nowrap;
+}
+
+
+.doctor-info-list {
+  display: flex;
+  flex-direction: column;
+
+  gap: 1px;
+}
+
+
+.doctor-info-list > div {
+  display: flex;
+
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 10px;
+
+  padding:
+    9px 2px;
+
+  border-bottom:
+    1px solid
+    rgba(255,255,255,.045);
+}
+
+
+.doctor-info-list > div:last-child {
+  border-bottom: 0;
+}
+
+
+.doctor-info-list span {
+  color: var(--muted);
+
+  font-size: 8px;
+}
+
+
+.doctor-info-list strong {
+  font-size: 8px;
+}
+
+
+/* DEVICES */
+
+.doctor-device-label {
+  margin-top: 11px;
+}
+
+
+.doctor-select {
+  width: 100%;
+
+  margin-top: 6px;
+
+  padding: 11px;
+
+  border:
+    1px solid var(--border);
+
+  border-radius: 11px;
+
+  outline: none;
+
+  background: #11131e;
+
+  color: white;
+
+  font-size: 9px;
+}
+
+
+.doctor-select:focus {
+  border-color:
+    var(--purple);
+}
+
+
+.doctor-secondary-button,
+.doctor-test-button {
+  width: 100%;
+
+  margin-top: 11px;
+
+  padding: 11px;
+
+  border-radius: 11px;
+
+  color: white;
+
+  cursor: pointer;
+}
+
+
+.doctor-secondary-button {
+  border:
+    1px solid var(--border);
+
+  background:
+    rgba(255,255,255,.045);
+}
+
+
+.doctor-test-button {
+  border: 0;
+
+  background:
+    linear-gradient(
+      135deg,
+      #806cff,
+      #6252df
+    );
+
+  font-weight: 700;
+}
+
+
+/* TEST RESULTS */
+
+.doctor-test-results {
+  margin-top: 12px;
+}
+
+
+.doctor-test-results > div {
+  display: flex;
+
+  justify-content: space-between;
+
+  padding:
+    8px 2px;
+
+  border-bottom:
+    1px solid
+    rgba(255,255,255,.045);
+}
+
+
+.doctor-test-results span {
+  color: var(--muted);
+
+  font-size: 8px;
+}
+
+
+.doctor-test-results strong {
+  font-size: 8px;
+}
+
+
+.doctor-ok {
+  color: #43e6a5;
+}
+
+
+.doctor-warning {
+  color: #ffb84d;
+}
+
+
+.doctor-bad {
+  color: #ff4e70;
+}
+
+
+@media (max-width: 600px) {
+
+  .network-doctor {
+    width: 100vw;
+
+    padding:
+      17px 14px 30px;
+  }
+
+}

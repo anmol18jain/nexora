@@ -898,7 +898,346 @@
   id="toast"
   class="toast"
 ></div>
+<!-- =====================================================
+     NEXORA NETWORK DOCTOR
+===================================================== -->
 
+<div
+  id="networkDoctorBackdrop"
+  class="doctor-backdrop hidden"
+></div>
+
+<aside
+  id="networkDoctor"
+  class="network-doctor"
+  aria-hidden="true"
+>
+
+  <div class="doctor-header">
+
+    <div>
+      <span class="doctor-kicker">
+        NEXORA SYSTEM
+      </span>
+
+      <h2>
+        Network Doctor
+      </h2>
+
+      <p>
+        Live call health and device control.
+      </p>
+    </div>
+
+    <button
+      id="closeNetworkDoctor"
+      class="doctor-close"
+      type="button"
+      aria-label="Close Network Doctor"
+    >
+      ×
+    </button>
+
+  </div>
+
+
+  <!-- OVERALL HEALTH -->
+
+  <section class="doctor-health-card">
+
+    <div
+      id="doctorHealthOrb"
+      class="doctor-health-orb"
+    >
+      <span
+        id="doctorHealthDot"
+        class="doctor-health-dot"
+      ></span>
+    </div>
+
+    <div>
+
+      <span class="doctor-label">
+        CALL HEALTH
+      </span>
+
+      <strong id="doctorHealth">
+        Waiting for call
+      </strong>
+
+      <small id="doctorHealthDescription">
+        Connect another participant to begin diagnostics.
+      </small>
+
+    </div>
+
+  </section>
+
+
+  <!-- LIVE NETWORK -->
+
+  <section class="doctor-section">
+
+    <div class="doctor-section-heading">
+
+      <div>
+        <strong>Live Network</strong>
+        <span>Updated during the call</span>
+      </div>
+
+      <span
+        id="doctorLiveIndicator"
+        class="doctor-live"
+      >
+        LIVE
+      </span>
+
+    </div>
+
+
+    <div class="doctor-metrics">
+
+      <div class="doctor-metric">
+
+        <span>Latency</span>
+
+        <strong id="doctorLatency">
+          —
+        </strong>
+
+        <small>Round trip</small>
+
+      </div>
+
+
+      <div class="doctor-metric">
+
+        <span>Jitter</span>
+
+        <strong id="doctorJitter">
+          —
+        </strong>
+
+        <small>Variation</small>
+
+      </div>
+
+
+      <div class="doctor-metric">
+
+        <span>Packet loss</span>
+
+        <strong id="doctorPacketLoss">
+          —
+        </strong>
+
+        <small>Received video</small>
+
+      </div>
+
+
+      <div class="doctor-metric">
+
+        <span>Receive</span>
+
+        <strong id="doctorBitrate">
+          —
+        </strong>
+
+        <small>Video bitrate</small>
+
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- CONNECTION ROUTE -->
+
+  <section class="doctor-section">
+
+    <div class="doctor-section-heading">
+
+      <div>
+        <strong>Connection Route</strong>
+        <span>How media reaches the other participant</span>
+      </div>
+
+    </div>
+
+
+    <div class="doctor-route">
+
+      <div class="route-node">
+        <span>YOU</span>
+      </div>
+
+      <div class="route-line">
+        <span id="doctorRouteLabel">
+          Waiting
+        </span>
+      </div>
+
+      <div class="route-node">
+        <span>PEER</span>
+      </div>
+
+    </div>
+
+
+    <div class="doctor-info-list">
+
+      <div>
+        <span>Path</span>
+
+        <strong id="doctorPath">
+          —
+        </strong>
+      </div>
+
+
+      <div>
+        <span>Protocol</span>
+
+        <strong id="doctorProtocol">
+          —
+        </strong>
+      </div>
+
+
+      <div>
+        <span>TURN fallback</span>
+
+        <strong id="doctorTurn">
+          Checking…
+        </strong>
+      </div>
+
+
+      <div>
+        <span>Adaptive quality</span>
+
+        <strong id="doctorQuality">
+          HD
+        </strong>
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- DEVICES -->
+
+  <section class="doctor-section">
+
+    <div class="doctor-section-heading">
+
+      <div>
+        <strong>Device Center</strong>
+        <span>Change devices without leaving the room</span>
+      </div>
+
+    </div>
+
+
+    <label class="doctor-device-label">
+
+      CAMERA
+
+      <select
+        id="doctorCameraSelect"
+        class="doctor-select"
+      >
+        <option value="">
+          Default camera
+        </option>
+      </select>
+
+    </label>
+
+
+    <label class="doctor-device-label">
+
+      MICROPHONE
+
+      <select
+        id="doctorMicSelect"
+        class="doctor-select"
+      >
+        <option value="">
+          Default microphone
+        </option>
+      </select>
+
+    </label>
+
+
+    <button
+      id="refreshDevicesButton"
+      class="doctor-secondary-button"
+      type="button"
+    >
+      ↻ Refresh devices
+    </button>
+
+  </section>
+
+
+  <!-- NETWORK TEST -->
+
+  <section class="doctor-section">
+
+    <button
+      id="runNetworkTestButton"
+      class="doctor-test-button"
+      type="button"
+    >
+      Run Network Test
+    </button>
+
+
+    <div
+      id="doctorTestResults"
+      class="doctor-test-results hidden"
+    >
+
+      <div>
+        <span>Signaling</span>
+        <strong id="testSignaling">—</strong>
+      </div>
+
+      <div>
+        <span>Internet</span>
+        <strong id="testInternet">—</strong>
+      </div>
+
+      <div>
+        <span>STUN / ICE</span>
+        <strong id="testIce">—</strong>
+      </div>
+
+      <div>
+        <span>TURN</span>
+        <strong id="testTurn">—</strong>
+      </div>
+
+      <div>
+        <span>Camera</span>
+        <strong id="testCamera">—</strong>
+      </div>
+
+      <div>
+        <span>Microphone</span>
+        <strong id="testMicrophone">—</strong>
+      </div>
+
+    </div>
+
+  </section>
+
+</aside>
 
 <!-- Socket.IO MUST load before app.js -->
 

@@ -3310,3 +3310,1765 @@ leaveButton.addEventListener(
       location.origin;
   }
 );
+/* =========================================================
+   NEXORA NETWORK DOCTOR
+   Add at END of app.js
+========================================================= */
+
+(() => {
+
+  const doctor =
+    document.getElementById(
+      "networkDoctor"
+    );
+
+  const backdrop =
+    document.getElementById(
+      "networkDoctorBackdrop"
+    );
+
+  const closeButton =
+    document.getElementById(
+      "closeNetworkDoctor"
+    );
+
+
+  if (
+    !doctor ||
+    !backdrop ||
+    !connectionText
+  ) {
+
+    console.warn(
+      "Network Doctor UI missing."
+    );
+
+    return;
+
+  }
+
+
+  /* =======================================================
+     ELEMENTS
+  ======================================================= */
+
+  const health =
+    document.getElementById(
+      "doctorHealth"
+    );
+
+  const healthDescription =
+    document.getElementById(
+      "doctorHealthDescription"
+    );
+
+  const healthDot =
+    document.getElementById(
+      "doctorHealthDot"
+    );
+
+  const latency =
+    document.getElementById(
+      "doctorLatency"
+    );
+
+  const jitter =
+    document.getElementById(
+      "doctorJitter"
+    );
+
+  const packetLoss =
+    document.getElementById(
+      "doctorPacketLoss"
+    );
+
+  const bitrate =
+    document.getElementById(
+      "doctorBitrate"
+    );
+
+  const pathElement =
+    document.getElementById(
+      "doctorPath"
+    );
+
+  const protocol =
+    document.getElementById(
+      "doctorProtocol"
+    );
+
+  const turn =
+    document.getElementById(
+      "doctorTurn"
+    );
+
+  const quality =
+    document.getElementById(
+      "doctorQuality"
+    );
+
+  const routeLabel =
+    document.getElementById(
+      "doctorRouteLabel"
+    );
+
+  const cameraSelect =
+    document.getElementById(
+      "doctorCameraSelect"
+    );
+
+  const micSelect =
+    document.getElementById(
+      "doctorMicSelect"
+    );
+
+  const refreshDevices =
+    document.getElementById(
+      "refreshDevicesButton"
+    );
+
+  const runTest =
+    document.getElementById(
+      "runNetworkTestButton"
+    );
+
+  const testResults =
+    document.getElementById(
+      "doctorTestResults"
+    );
+
+  const testSignaling =
+    document.getElementById(
+      "testSignaling"
+    );
+
+  const testInternet =
+    document.getElementById(
+      "testInternet"
+    );
+
+  const testIce =
+    document.getElementById(
+      "testIce"
+    );
+
+  const testTurn =
+    document.getElementById(
+      "testTurn"
+    );
+
+  const testCamera =
+    document.getElementById(
+      "testCamera"
+    );
+
+  const testMicrophone =
+    document.getElementById(
+      "testMicrophone"
+    );
+
+
+  /* =======================================================
+     OPEN / CLOSE
+
+     The existing top connection pill becomes the button.
+  ======================================================= */
+
+  const connectionPill =
+    connectionText.closest(
+      ".network-pill"
+    );
+
+
+  if (connectionPill) {
+
+    connectionPill.title =
+      "Open Network Doctor";
+
+    connectionPill.setAttribute(
+      "role",
+      "button"
+    );
+
+    connectionPill.tabIndex =
+      0;
+
+
+    connectionPill.addEventListener(
+      "click",
+      openDoctor
+    );
+
+
+    connectionPill.addEventListener(
+      "keydown",
+      (event) => {
+
+        if (
+          event.key === "Enter" ||
+          event.key === " "
+        ) {
+
+          event.preventDefault();
+
+          openDoctor();
+
+        }
+
+      }
+    );
+
+  }
+
+
+  closeButton.addEventListener(
+    "click",
+    closeDoctor
+  );
+
+
+  backdrop.addEventListener(
+    "click",
+    closeDoctor
+  );
+
+
+  document.addEventListener(
+    "keydown",
+    (event) => {
+
+      if (
+        event.key === "Escape" &&
+        doctor.classList.contains(
+          "open"
+        )
+      ) {
+
+        closeDoctor();
+
+      }
+
+    }
+  );
+
+
+  function openDoctor() {
+
+    doctor.classList.add(
+      "open"
+    );
+
+    doctor.setAttribute(
+      "aria-hidden",
+      "false"
+    );
+
+    backdrop.classList.remove(
+      "hidden"
+    );
+
+    refreshDeviceList();
+
+    updateTurnStatus();
+
+    updateDoctorStats();
+
+  }
+
+
+  function closeDoctor() {
+
+    doctor.classList.remove(
+      "open"
+    );
+
+    doctor.setAttribute(
+      "aria-hidden",
+      "true"
+    );
+
+    backdrop.classList.add(
+      "hidden"
+    );
+
+  }
+
+
+  /* =======================================================
+     DEVICE ENUMERATION
+  ======================================================= */
+
+  async function refreshDeviceList() {
+
+    if (
+      !navigator.mediaDevices
+        ?.enumerateDevices
+    ) {
+
+      return;
+
+    }
+
+
+    try {
+
+      const devices =
+        await navigator.mediaDevices
+          .enumerateDevices();
+
+
+      const cameras =
+        devices.filter(
+          (device) =>
+            device.kind ===
+            "videoinput"
+        );
+
+
+      const microphones =
+        devices.filter(
+          (device) =>
+            device.kind ===
+            "audioinput"
+        );
+
+
+      const currentCamera =
+        localStream
+          ?.getVideoTracks()[0]
+          ?.getSettings()
+          ?.deviceId || "";
+
+
+      const currentMic =
+        localStream
+          ?.getAudioTracks()[0]
+          ?.getSettings()
+          ?.deviceId || "";
+
+
+      cameraSelect.innerHTML =
+        "";
+
+
+      micSelect.innerHTML =
+        "";
+
+
+      if (
+        cameras.length === 0
+      ) {
+
+        cameraSelect.innerHTML =
+          `<option value="">
+             No camera detected
+           </option>`;
+
+      }
+
+      else {
+
+        cameras.forEach(
+          (device, index) => {
+
+            const option =
+              document.createElement(
+                "option"
+              );
+
+
+            option.value =
+              device.deviceId;
+
+
+            option.textContent =
+              device.label ||
+              `Camera ${index + 1}`;
+
+
+            if (
+              device.deviceId ===
+              currentCamera
+            ) {
+
+              option.selected =
+                true;
+
+            }
+
+
+            cameraSelect.appendChild(
+              option
+            );
+
+          }
+        );
+
+      }
+
+
+      if (
+        microphones.length === 0
+      ) {
+
+        micSelect.innerHTML =
+          `<option value="">
+             No microphone detected
+           </option>`;
+
+      }
+
+      else {
+
+        microphones.forEach(
+          (device, index) => {
+
+            const option =
+              document.createElement(
+                "option"
+              );
+
+
+            option.value =
+              device.deviceId;
+
+
+            option.textContent =
+              device.label ||
+              `Microphone ${index + 1}`;
+
+
+            if (
+              device.deviceId ===
+              currentMic
+            ) {
+
+              option.selected =
+                true;
+
+            }
+
+
+            micSelect.appendChild(
+              option
+            );
+
+          }
+        );
+
+      }
+
+    }
+
+    catch (error) {
+
+      console.warn(
+        "Device enumeration failed:",
+        error
+      );
+
+    }
+
+  }
+
+
+  refreshDevices.addEventListener(
+    "click",
+    refreshDeviceList
+  );
+
+
+  if (
+    navigator.mediaDevices
+      ?.addEventListener
+  ) {
+
+    navigator.mediaDevices
+      .addEventListener(
+        "devicechange",
+        refreshDeviceList
+      );
+
+  }
+
+
+  /* =======================================================
+     CAMERA SWITCHING
+  ======================================================= */
+
+  cameraSelect.addEventListener(
+    "change",
+    async () => {
+
+      const deviceId =
+        cameraSelect.value;
+
+
+      if (!deviceId) return;
+
+
+      try {
+
+        const stream =
+          await navigator.mediaDevices
+            .getUserMedia({
+
+              video: {
+                deviceId: {
+                  exact:
+                    deviceId
+                },
+
+                width: {
+                  ideal: 1280
+                },
+
+                height: {
+                  ideal: 720
+                },
+
+                frameRate: {
+                  ideal: 30,
+                  max: 30
+                }
+              },
+
+              audio: false
+
+            });
+
+
+        const newTrack =
+          stream
+            .getVideoTracks()[0];
+
+
+        if (!newTrack) {
+          return;
+        }
+
+
+        const oldTrack =
+          localStream
+            ?.getVideoTracks()[0];
+
+
+        /*
+          Preserve camera on/off state.
+        */
+
+        newTrack.enabled =
+          cameraEnabled;
+
+
+        for (
+          const peer
+          of peers.values()
+        ) {
+
+          const sender =
+            peer.pc
+              .getSenders()
+              .find(
+                (sender) =>
+                  sender.track?.kind ===
+                  "video"
+              );
+
+
+          if (sender) {
+
+            await sender.replaceTrack(
+              newTrack
+            );
+
+          }
+
+        }
+
+
+        if (localStream) {
+
+          if (oldTrack) {
+
+            localStream.removeTrack(
+              oldTrack
+            );
+
+            oldTrack.stop();
+
+          }
+
+
+          localStream.addTrack(
+            newTrack
+          );
+
+        }
+
+
+        const localVideo =
+          document.querySelector(
+            `[data-video-id="${socket.id}"] video`
+          );
+
+
+        if (
+          localVideo &&
+          !sharingScreen
+        ) {
+
+          localVideo.srcObject =
+            localStream;
+
+        }
+
+
+        toast(
+          "Camera changed"
+        );
+
+
+        refreshDeviceList();
+
+      }
+
+      catch (error) {
+
+        console.error(
+          "Camera switch failed:",
+          error
+        );
+
+
+        toast(
+          "Unable to switch camera."
+        );
+
+      }
+
+    }
+  );
+
+
+  /* =======================================================
+     MICROPHONE SWITCHING
+  ======================================================= */
+
+  micSelect.addEventListener(
+    "change",
+    async () => {
+
+      const deviceId =
+        micSelect.value;
+
+
+      if (!deviceId) return;
+
+
+      try {
+
+        const stream =
+          await navigator.mediaDevices
+            .getUserMedia({
+
+              audio: {
+                deviceId: {
+                  exact:
+                    deviceId
+                },
+
+                echoCancellation:
+                  true,
+
+                noiseSuppression:
+                  true,
+
+                autoGainControl:
+                  true
+              },
+
+              video: false
+
+            });
+
+
+        const newTrack =
+          stream
+            .getAudioTracks()[0];
+
+
+        if (!newTrack) {
+          return;
+        }
+
+
+        const oldTrack =
+          localStream
+            ?.getAudioTracks()[0];
+
+
+        newTrack.enabled =
+          micEnabled;
+
+
+        for (
+          const peer
+          of peers.values()
+        ) {
+
+          const sender =
+            peer.pc
+              .getSenders()
+              .find(
+                (sender) =>
+                  sender.track?.kind ===
+                  "audio"
+              );
+
+
+          if (sender) {
+
+            await sender.replaceTrack(
+              newTrack
+            );
+
+          }
+
+        }
+
+
+        if (localStream) {
+
+          if (oldTrack) {
+
+            localStream.removeTrack(
+              oldTrack
+            );
+
+            oldTrack.stop();
+
+          }
+
+
+          localStream.addTrack(
+            newTrack
+          );
+
+        }
+
+
+        toast(
+          "Microphone changed"
+        );
+
+
+        refreshDeviceList();
+
+      }
+
+      catch (error) {
+
+        console.error(
+          "Microphone switch failed:",
+          error
+        );
+
+
+        toast(
+          "Unable to switch microphone."
+        );
+
+      }
+
+    }
+  );
+
+
+  /* =======================================================
+     TURN STATUS
+  ======================================================= */
+
+  async function updateTurnStatus() {
+
+    try {
+
+      const response =
+        await fetch(
+          "/api/ice",
+          {
+            cache:
+              "no-store"
+          }
+        );
+
+
+      const data =
+        await response.json();
+
+
+      turn.textContent =
+        data.turnEnabled
+          ? "Available"
+          : "Not configured";
+
+
+      turn.className =
+        data.turnEnabled
+          ? "doctor-ok"
+          : "doctor-warning";
+
+    }
+
+    catch {
+
+      turn.textContent =
+        "Unknown";
+
+
+      turn.className =
+        "doctor-warning";
+
+    }
+
+  }
+
+
+  /* =======================================================
+     SELECTED CANDIDATE ROUTE
+
+     This is important:
+     relay = TURN
+     host/srflx/prflx = direct path
+  ======================================================= */
+
+  async function getPeerDiagnostics(
+    peer
+  ) {
+
+    const result = {
+
+      rtt: null,
+
+      jitter: null,
+
+      loss: null,
+
+      bitrate: null,
+
+      path: "Unknown",
+
+      protocol: "Unknown",
+
+      candidateType:
+        "unknown"
+
+    };
+
+
+    try {
+
+      const stats =
+        await peer.pc.getStats();
+
+
+      let pair = null;
+      let inbound = null;
+
+
+      stats.forEach(
+        (report) => {
+
+          if (
+            report.type ===
+              "candidate-pair" &&
+            report.state ===
+              "succeeded" &&
+            (
+              report.nominated ||
+              report.selected
+            )
+          ) {
+
+            pair = report;
+
+          }
+
+
+          if (
+            report.type ===
+              "inbound-rtp" &&
+            (
+              report.kind ===
+                "video" ||
+              report.mediaType ===
+                "video"
+            )
+          ) {
+
+            inbound = report;
+
+          }
+
+        }
+      );
+
+
+      if (pair) {
+
+        if (
+          Number.isFinite(
+            pair.currentRoundTripTime
+          )
+        ) {
+
+          result.rtt =
+            pair.currentRoundTripTime *
+            1000;
+
+        }
+
+
+        const localCandidate =
+          stats.get(
+            pair.localCandidateId
+          );
+
+
+        const remoteCandidate =
+          stats.get(
+            pair.remoteCandidateId
+          );
+
+
+        const candidate =
+          localCandidate ||
+          remoteCandidate;
+
+
+        if (candidate) {
+
+          result.candidateType =
+            candidate.candidateType ||
+            "unknown";
+
+
+          result.protocol =
+            (
+              candidate.protocol ||
+              pair.protocol ||
+              "unknown"
+            ).toUpperCase();
+
+
+          if (
+            result.candidateType ===
+            "relay"
+          ) {
+
+            result.path =
+              "TURN Relay";
+
+          }
+
+          else if (
+            [
+              "host",
+              "srflx",
+              "prflx"
+            ].includes(
+              result.candidateType
+            )
+          ) {
+
+            result.path =
+              "Direct P2P";
+
+          }
+
+        }
+
+      }
+
+
+      if (inbound) {
+
+        if (
+          Number.isFinite(
+            inbound.jitter
+          )
+        ) {
+
+          result.jitter =
+            inbound.jitter *
+            1000;
+
+        }
+
+
+        const lost =
+          Number(
+            inbound.packetsLost ||
+            0
+          );
+
+
+        const received =
+          Number(
+            inbound.packetsReceived ||
+            0
+          );
+
+
+        const total =
+          lost +
+          received;
+
+
+        result.loss =
+          total > 0
+            ? Math.max(
+                0,
+                lost /
+                total *
+                100
+              )
+            : 0;
+
+
+        /*
+          Reuse the rolling bitrate already calculated
+          by the Connection Engine when available.
+        */
+
+        if (
+          Number.isFinite(
+            peer.stats?.bitrate
+          )
+        ) {
+
+          result.bitrate =
+            peer.stats.bitrate;
+
+        }
+
+      }
+
+    }
+
+    catch (error) {
+
+      console.warn(
+        "Doctor diagnostics:",
+        error
+      );
+
+    }
+
+
+    return result;
+
+  }
+
+
+  /* =======================================================
+     LIVE DOCTOR UPDATE
+  ======================================================= */
+
+  async function updateDoctorStats() {
+
+    if (
+      peers.size === 0
+    ) {
+
+      setHealth(
+        "Waiting for call",
+        "neutral"
+      );
+
+
+      healthDescription.textContent =
+        "Connect another participant to begin diagnostics.";
+
+
+      latency.textContent =
+        "—";
+
+      jitter.textContent =
+        "—";
+
+      packetLoss.textContent =
+        "—";
+
+      bitrate.textContent =
+        "—";
+
+      pathElement.textContent =
+        "—";
+
+      protocol.textContent =
+        "—";
+
+      routeLabel.textContent =
+        "Waiting";
+
+      quality.textContent =
+        currentQuality ||
+        "HD";
+
+
+      return;
+
+    }
+
+
+    const diagnostics = [];
+
+
+    for (
+      const peer
+      of peers.values()
+    ) {
+
+      diagnostics.push(
+        await getPeerDiagnostics(
+          peer
+        )
+      );
+
+    }
+
+
+    const valid =
+      diagnostics.filter(
+        Boolean
+      );
+
+
+    const average =
+      (values) => {
+
+        const numbers =
+          values.filter(
+            Number.isFinite
+          );
+
+
+        if (
+          numbers.length === 0
+        ) {
+          return null;
+        }
+
+
+        return numbers.reduce(
+          (sum, value) =>
+            sum + value,
+          0
+        ) /
+        numbers.length;
+
+      };
+
+
+    const avgRtt =
+      average(
+        valid.map(
+          (item) =>
+            item.rtt
+        )
+      );
+
+
+    const avgJitter =
+      average(
+        valid.map(
+          (item) =>
+            item.jitter
+        )
+      );
+
+
+    const avgLoss =
+      average(
+        valid.map(
+          (item) =>
+            item.loss
+        )
+      );
+
+
+    const avgBitrate =
+      average(
+        valid.map(
+          (item) =>
+            item.bitrate
+        )
+      );
+
+
+    latency.textContent =
+      Number.isFinite(
+        avgRtt
+      )
+        ? `${Math.round(avgRtt)} ms`
+        : "—";
+
+
+    jitter.textContent =
+      Number.isFinite(
+        avgJitter
+      )
+        ? `${Math.round(avgJitter)} ms`
+        : "—";
+
+
+    packetLoss.textContent =
+      Number.isFinite(
+        avgLoss
+      )
+        ? `${avgLoss.toFixed(1)}%`
+        : "—";
+
+
+    bitrate.textContent =
+      Number.isFinite(
+        avgBitrate
+      )
+        ? avgBitrate >= 1000
+          ? `${(avgBitrate / 1000).toFixed(1)} Mbps`
+          : `${Math.round(avgBitrate)} Kbps`
+        : "—";
+
+
+    const relay =
+      valid.some(
+        (item) =>
+          item.path ===
+          "TURN Relay"
+      );
+
+
+    const direct =
+      valid.some(
+        (item) =>
+          item.path ===
+          "Direct P2P"
+      );
+
+
+    if (relay) {
+
+      pathElement.textContent =
+        "TURN Relay";
+
+
+      routeLabel.textContent =
+        "Relay";
+
+    }
+
+    else if (direct) {
+
+      pathElement.textContent =
+        "Direct P2P";
+
+
+      routeLabel.textContent =
+        "Direct";
+
+    }
+
+    else {
+
+      pathElement.textContent =
+        "Detecting…";
+
+
+      routeLabel.textContent =
+        "ICE";
+
+    }
+
+
+    const protocols =
+      [
+        ...new Set(
+          valid
+            .map(
+              (item) =>
+                item.protocol
+            )
+            .filter(
+              (value) =>
+                value &&
+                value !==
+                "Unknown"
+            )
+        )
+      ];
+
+
+    protocol.textContent =
+      protocols.length
+        ? protocols.join(", ")
+        : "—";
+
+
+    quality.textContent =
+      currentQuality ||
+      "HD";
+
+
+    /*
+      Health classification.
+    */
+
+    let state =
+      "Excellent";
+
+
+    let level =
+      "good";
+
+
+    if (
+      (
+        Number.isFinite(
+          avgLoss
+        ) &&
+        avgLoss > 8
+      ) ||
+      (
+        Number.isFinite(
+          avgRtt
+        ) &&
+        avgRtt > 600
+      ) ||
+      (
+        Number.isFinite(
+          avgJitter
+        ) &&
+        avgJitter > 100
+      )
+    ) {
+
+      state =
+        "Poor";
+
+      level =
+        "bad";
+
+    }
+
+    else if (
+      (
+        Number.isFinite(
+          avgLoss
+        ) &&
+        avgLoss > 4
+      ) ||
+      (
+        Number.isFinite(
+          avgRtt
+        ) &&
+        avgRtt > 350
+      ) ||
+      (
+        Number.isFinite(
+          avgJitter
+        ) &&
+        avgJitter > 60
+      )
+    ) {
+
+      state =
+        "Weak";
+
+      level =
+        "warning";
+
+    }
+
+    else if (
+      (
+        Number.isFinite(
+          avgLoss
+        ) &&
+        avgLoss > 1.5
+      ) ||
+      (
+        Number.isFinite(
+          avgRtt
+        ) &&
+        avgRtt > 180
+      ) ||
+      (
+        Number.isFinite(
+          avgJitter
+        ) &&
+        avgJitter > 30
+      )
+    ) {
+
+      state =
+        "Good";
+
+      level =
+        "good";
+
+    }
+
+
+    setHealth(
+      state,
+      level
+    );
+
+
+    healthDescription.textContent =
+      relay
+        ? "Media is using TURN relay for reliable connectivity."
+        : state === "Excellent"
+          ? "Your real-time connection is performing very well."
+          : state === "Good"
+            ? "Connection is healthy with minor network variation."
+            : state === "Weak"
+              ? "NEXORA is reducing video load to protect the call."
+              : "Network conditions are affecting call quality.";
+
+  }
+
+
+  function setHealth(
+    text,
+    level
+  ) {
+
+    health.textContent =
+      text;
+
+
+    let color =
+      "#9296a8";
+
+
+    if (
+      level === "good"
+    ) {
+
+      color =
+        "#43e6a5";
+
+    }
+
+
+    if (
+      level === "warning"
+    ) {
+
+      color =
+        "#ffb84d";
+
+    }
+
+
+    if (
+      level === "bad"
+    ) {
+
+      color =
+        "#ff4e70";
+
+    }
+
+
+    healthDot.style.background =
+      color;
+
+
+    healthDot.style.boxShadow =
+      `0 0 14px ${color}`;
+
+  }
+
+
+  setInterval(
+    updateDoctorStats,
+    3000
+  );
+
+
+  /* =======================================================
+     NETWORK TEST
+  ======================================================= */
+
+  runTest.addEventListener(
+    "click",
+    runNetworkDoctorTest
+  );
+
+
+  async function runNetworkDoctorTest() {
+
+    testResults.classList.remove(
+      "hidden"
+    );
+
+
+    runTest.disabled =
+      true;
+
+
+    runTest.textContent =
+      "Testing…";
+
+
+    setTestState(
+      testSignaling,
+      "Testing",
+      "warning"
+    );
+
+
+    setTestState(
+      testInternet,
+      "Testing",
+      "warning"
+    );
+
+
+    setTestState(
+      testIce,
+      "Testing",
+      "warning"
+    );
+
+
+    setTestState(
+      testTurn,
+      "Testing",
+      "warning"
+    );
+
+
+    setTestState(
+      testCamera,
+      "Testing",
+      "warning"
+    );
+
+
+    setTestState(
+      testMicrophone,
+      "Testing",
+      "warning"
+    );
+
+
+    /* Socket */
+
+    setTestState(
+      testSignaling,
+      socket.connected
+        ? "Ready"
+        : "Offline",
+      socket.connected
+        ? "ok"
+        : "bad"
+    );
+
+
+    /* Internet/server */
+
+    try {
+
+      const started =
+        performance.now();
+
+
+      const response =
+        await fetch(
+          `/health?doctor=${Date.now()}`,
+          {
+            cache:
+              "no-store"
+          }
+        );
+
+
+      const elapsed =
+        performance.now() -
+        started;
+
+
+      setTestState(
+        testInternet,
+        response.ok
+          ? `${Math.round(elapsed)} ms`
+          : "Failed",
+        response.ok
+          ? "ok"
+          : "bad"
+      );
+
+    }
+
+    catch {
+
+      setTestState(
+        testInternet,
+        "Failed",
+        "bad"
+      );
+
+    }
+
+
+    /* ICE */
+
+    const connectedPeer =
+      [...peers.values()]
+        .find(
+          (peer) =>
+            [
+              "connected",
+              "completed"
+            ].includes(
+              peer.pc
+                .iceConnectionState
+            )
+        );
+
+
+    setTestState(
+      testIce,
+      connectedPeer
+        ? "Working"
+        : peers.size
+          ? "Connecting"
+          : "No peer",
+      connectedPeer
+        ? "ok"
+        : "warning"
+    );
+
+
+    /* TURN */
+
+    try {
+
+      const response =
+        await fetch(
+          "/api/ice",
+          {
+            cache:
+              "no-store"
+          }
+        );
+
+
+      const data =
+        await response.json();
+
+
+      setTestState(
+        testTurn,
+        data.turnEnabled
+          ? "Available"
+          : "Not configured",
+        data.turnEnabled
+          ? "ok"
+          : "warning"
+      );
+
+    }
+
+    catch {
+
+      setTestState(
+        testTurn,
+        "Unknown",
+        "warning"
+      );
+
+    }
+
+
+    /* Devices */
+
+    const cameraTrack =
+      localStream
+        ?.getVideoTracks()[0];
+
+
+    const micTrack =
+      localStream
+        ?.getAudioTracks()[0];
+
+
+    setTestState(
+      testCamera,
+      cameraTrack
+        ? cameraTrack.readyState ===
+            "live"
+          ? "Ready"
+          : "Unavailable"
+        : "Not active",
+      cameraTrack?.readyState ===
+        "live"
+        ? "ok"
+        : "warning"
+    );
+
+
+    setTestState(
+      testMicrophone,
+      micTrack
+        ? micTrack.readyState ===
+            "live"
+          ? "Ready"
+          : "Unavailable"
+        : "Not active",
+      micTrack?.readyState ===
+        "live"
+        ? "ok"
+        : "bad"
+    );
+
+
+    runTest.disabled =
+      false;
+
+
+    runTest.textContent =
+      "Run Again";
+
+  }
+
+
+  function setTestState(
+    element,
+    text,
+    state
+  ) {
+
+    element.textContent =
+      text;
+
+
+    element.className =
+      state === "ok"
+        ? "doctor-ok"
+        : state === "bad"
+          ? "doctor-bad"
+          : "doctor-warning";
+
+  }
+
+
+  /* Initial */
+
+  updateTurnStatus();
+
+})();
