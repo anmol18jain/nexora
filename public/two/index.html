@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width,initial-scale=1,viewport-fit=cover"
+  >
+
+  <meta name="theme-color" content="#09090f">
+
+  <title>NEXORA TWO</title>
+
+  <link rel="stylesheet" href="/two/two.css">
+</head>
+
+<body>
+
+<div class="two-app">
+
+  <!-- ============================================
+       ENTRY
+  ============================================= -->
+
+  <section id="twoEntry" class="entry-screen">
+
+    <div class="glow glow-one"></div>
+    <div class="glow glow-two"></div>
+
+    <div class="entry-content">
+
+      <button
+        id="backToNexora"
+        class="back-button"
+        type="button"
+      >
+        ← NEXORA
+      </button>
+
+      <div class="two-logo">
+        <span>♡</span>
+      </div>
+
+      <div class="two-kicker">
+        NEXORA TWO
+      </div>
+
+      <h1>
+        Your space.
+        <span>Just for two.</span>
+      </h1>
+
+      <p class="entry-copy">
+        Call, study, watch, stay quiet together,
+        or simply let someone know you're there.
+      </p>
+
+      <div class="entry-form">
+
+        <label>
+          YOUR NAME
+
+          <input
+            id="twoName"
+            maxlength="30"
+            placeholder="Your name"
+          >
+        </label>
+
+        <label>
+          YOUR SPACE
+
+          <div class="space-input-row">
+
+            <input
+              id="twoSpace"
+              maxlength="64"
+              placeholder="Private space code"
+            >
+
+            <button
+              id="randomTwoSpace"
+              class="secondary-button"
+              type="button"
+            >
+              Create
+            </button>
+
+          </div>
+
+        </label>
+
+        <button
+          id="enterTwo"
+          class="primary-button"
+          type="button"
+        >
+          Enter Together
+        </button>
+
+      </div>
+
+      <div class="privacy-note">
+        🔒 Designed as a private two-person space.
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- ============================================
+       TWO HOME
+  ============================================= -->
+
+  <main id="twoHome" class="two-home hidden">
+
+    <header class="two-header">
+
+      <div>
+
+        <span class="header-kicker">
+          NEXORA TWO
+        </span>
+
+        <strong id="spaceTitle">
+          Our Space
+        </strong>
+
+      </div>
+
+      <div class="header-actions">
+
+        <span
+          id="partnerStatus"
+          class="partner-status"
+        >
+          <i></i>
+          Waiting
+        </span>
+
+        <button
+          id="twoSettingsButton"
+          class="icon-button"
+          type="button"
+        >
+          ⚙
+        </button>
+
+      </div>
+
+    </header>
+
+
+    <!-- ============================================
+         PRESENCE HERO
+    ============================================= -->
+
+    <section class="presence-hero">
+
+      <div class="presence-stars"></div>
+
+      <div class="presence-top">
+
+        <span id="presenceModeBadge">
+          QUIET TOGETHER
+        </span>
+
+        <span id="togetherDuration">
+          00:00
+        </span>
+
+      </div>
+
+
+      <div class="couple-zone">
+
+        <div class="person-side">
+
+          <div class="presence-avatar">
+            <video
+              id="myTwoVideo"
+              autoplay
+              muted
+              playsinline
+            ></video>
+
+            <div
+              id="myFallback"
+              class="avatar-fallback"
+            >
+              Y
+            </div>
+          </div>
+
+          <strong id="myTwoName">
+            You
+          </strong>
+
+          <span id="myActivity">
+            Here
+          </span>
+
+        </div>
+
+
+        <!-- TOUCH -->
+
+        <button
+          id="touchButton"
+          class="touch-core"
+          type="button"
+          aria-label="Send a touch"
+        >
+
+          <span class="touch-ring ring-one"></span>
+          <span class="touch-ring ring-two"></span>
+
+          <span class="touch-heart">
+            ♡
+          </span>
+
+          <small>
+            hold
+          </small>
+
+        </button>
+
+
+        <div class="person-side">
+
+          <div class="presence-avatar">
+
+            <video
+              id="partnerTwoVideo"
+              autoplay
+              playsinline
+            ></video>
+
+            <div
+              id="partnerFallback"
+              class="avatar-fallback"
+            >
+              ♡
+            </div>
+
+          </div>
+
+          <strong id="partnerName">
+            Your person
+          </strong>
+
+          <span id="partnerActivity">
+            Waiting
+          </span>
+
+        </div>
+
+      </div>
+
+
+      <div
+        id="touchMessage"
+        class="touch-message"
+      >
+        Hold ♡ to say “I'm here”
+      </div>
+
+    </section>
+
+
+    <!-- ============================================
+         MODE CARDS
+    ============================================= -->
+
+    <section class="section-block">
+
+      <div class="section-heading">
+
+        <div>
+          <span>BE TOGETHER</span>
+          <strong>Choose a moment</strong>
+        </div>
+
+      </div>
+
+
+      <div class="moment-grid">
+
+        <button
+          class="moment-card"
+          data-mode="conversation"
+          type="button"
+        >
+          <span class="moment-icon">
+            💬
+          </span>
+
+          <strong>
+            Talk
+          </strong>
+
+          <small>
+            Full-quality call
+          </small>
+        </button>
+
+
+        <button
+          class="moment-card"
+          data-mode="quiet"
+          type="button"
+        >
+          <span class="moment-icon">
+            ☕
+          </span>
+
+          <strong>
+            Quiet
+          </strong>
+
+          <small>
+            Just be there
+          </small>
+        </button>
+
+
+        <button
+          class="moment-card"
+          data-mode="study"
+          type="button"
+        >
+          <span class="moment-icon">
+            📚
+          </span>
+
+          <strong>
+            Study
+          </strong>
+
+          <small>
+            Focus together
+          </small>
+        </button>
+
+
+        <button
+          class="moment-card"
+          data-mode="cinema"
+          type="button"
+        >
+          <span class="moment-icon">
+            🎬
+          </span>
+
+          <strong>
+            Cinema
+          </strong>
+
+          <small>
+            Watch together
+          </small>
+        </button>
+
+
+        <button
+          class="moment-card"
+          data-mode="sleep"
+          type="button"
+        >
+          <span class="moment-icon">
+            🌙
+          </span>
+
+          <strong>
+            Night
+          </strong>
+
+          <small>
+            Low-power presence
+          </small>
+        </button>
+
+
+        <button
+          id="pulseButton"
+          class="moment-card"
+          type="button"
+        >
+          <span class="moment-icon">
+            ✨
+          </span>
+
+          <strong>
+            Pulse
+          </strong>
+
+          <small>
+            Send a tiny signal
+          </small>
+        </button>
+
+      </div>
+
+    </section>
+
+
+    <!-- ============================================
+         STUDY MODE
+    ============================================= -->
+
+    <section
+      id="studyPanel"
+      class="experience-panel hidden"
+    >
+
+      <div class="experience-header">
+
+        <div>
+          <span>STUDY TOGETHER</span>
+          <strong>
+            One timer. Two desks.
+          </strong>
+        </div>
+
+        <button
+          class="close-experience"
+          type="button"
+        >
+          ×
+        </button>
+
+      </div>
+
+
+      <div class="focus-clock">
+
+        <span id="studyPhase">
+          FOCUS
+        </span>
+
+        <strong id="studyTimer">
+          25:00
+        </strong>
+
+        <small>
+          synchronized focus session
+        </small>
+
+      </div>
+
+
+      <div class="timer-actions">
+
+        <button
+          id="studyStart"
+          class="primary-button"
+          type="button"
+        >
+          Start Together
+        </button>
+
+        <button
+          id="studyReset"
+          class="secondary-button"
+          type="button"
+        >
+          Reset
+        </button>
+
+      </div>
+
+    </section>
+
+
+    <!-- ============================================
+         CINEMA
+    ============================================= -->
+
+    <section
+      id="cinemaPanel"
+      class="experience-panel cinema-panel hidden"
+    >
+
+      <div class="experience-header">
+
+        <div>
+          <span>COUPLE CINEMA</span>
+
+          <strong>
+            Tonight's screen
+          </strong>
+        </div>
+
+        <button
+          class="close-experience"
+          type="button"
+        >
+          ×
+        </button>
+
+      </div>
+
+
+      <div class="cinema-input">
+
+        <input
+          id="coupleYoutubeUrl"
+          placeholder="Paste a YouTube link"
+        >
+
+        <button
+          id="coupleYoutubeStart"
+          class="primary-button"
+          type="button"
+        >
+          Watch
+        </button>
+
+      </div>
+
+
+      <div
+        id="couplePlayer"
+        class="couple-player"
+      >
+
+        <div class="cinema-placeholder">
+          <span>🎬</span>
+
+          <strong>
+            Pick something together
+          </strong>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ============================================
+         SENSOR CARD
+    ============================================= -->
+
+    <section class="section-block">
+
+      <div class="section-heading">
+
+        <div>
+          <span>PHONE MAGIC</span>
+
+          <strong>
+            Small gestures
+          </strong>
+        </div>
+
+      </div>
+
+
+      <div class="sensor-card">
+
+        <div>
+
+          <span class="sensor-icon">
+            📱
+          </span>
+
+          <div>
+            <strong>
+              Shake to send a Touch
+            </strong>
+
+            <small id="motionStatus">
+              Checking this device…
+            </small>
+          </div>
+
+        </div>
+
+
+        <label class="switch">
+
+          <input
+            id="motionToggle"
+            type="checkbox"
+          >
+
+          <span></span>
+
+        </label>
+
+      </div>
+
+    </section>
+
+
+    <!-- ============================================
+         BOTTOM NAV
+    ============================================= -->
+
+    <nav class="two-nav">
+
+      <button
+        class="nav-item active"
+        type="button"
+      >
+        <span>♡</span>
+        Home
+      </button>
+
+      <button
+        id="invitePartnerButton"
+        class="nav-item"
+        type="button"
+      >
+        <span>＋</span>
+        Invite
+      </button>
+
+      <button
+        id="leaveTwoButton"
+        class="nav-item"
+        type="button"
+      >
+        <span>↗</span>
+        Leave
+      </button>
+
+    </nav>
+
+  </main>
+
+
+  <!-- ============================================
+       SETTINGS
+  ============================================= -->
+
+  <div
+    id="twoSettings"
+    class="settings-sheet hidden"
+  >
+
+    <div class="sheet-backdrop"></div>
+
+    <div class="sheet-card">
+
+      <div class="sheet-handle"></div>
+
+      <div class="sheet-header">
+
+        <div>
+          <span>OUR SPACE</span>
+
+          <strong>
+            Privacy & Presence
+          </strong>
+        </div>
+
+        <button
+          id="closeTwoSettings"
+          type="button"
+        >
+          ×
+        </button>
+
+      </div>
+
+
+      <div class="setting-row">
+
+        <div>
+          <strong>
+            Camera
+          </strong>
+
+          <small>
+            Share video in this space
+          </small>
+        </div>
+
+        <label class="switch">
+          <input
+            id="twoCameraToggle"
+            type="checkbox"
+            checked
+          >
+          <span></span>
+        </label>
+
+      </div>
+
+
+      <div class="setting-row">
+
+        <div>
+          <strong>
+            Microphone
+          </strong>
+
+          <small>
+            Stay available for conversation
+          </small>
+        </div>
+
+        <label class="switch">
+          <input
+            id="twoMicToggle"
+            type="checkbox"
+            checked
+          >
+          <span></span>
+        </label>
+
+      </div>
+
+
+      <div class="setting-row">
+
+        <div>
+          <strong>
+            Haptic Touch
+          </strong>
+
+          <small>
+            Vibrate for deliberate Touch signals
+          </small>
+        </div>
+
+        <label class="switch">
+          <input
+            id="hapticToggle"
+            type="checkbox"
+            checked
+          >
+          <span></span>
+        </label>
+
+      </div>
+
+
+      <div class="setting-row">
+
+        <div>
+          <strong>
+            Motion gestures
+          </strong>
+
+          <small>
+            Detect intentional shake locally
+          </small>
+        </div>
+
+        <label class="switch">
+          <input
+            id="settingsMotionToggle"
+            type="checkbox"
+          >
+          <span></span>
+        </label>
+
+      </div>
+
+
+      <div class="privacy-box">
+        <strong>
+          Privacy rule
+        </strong>
+
+        <p>
+          Raw motion sensor data stays on this phone.
+          Your partner only receives deliberate events
+          such as “Touch”.
+        </p>
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- ============================================
+       FLOATING SIGNAL
+  ============================================= -->
+
+  <div
+    id="incomingTouch"
+    class="incoming-touch hidden"
+  >
+    <span>♡</span>
+
+    <strong id="incomingTouchText">
+      They're here
+    </strong>
+  </div>
+
+
+  <div
+    id="twoToast"
+    class="two-toast"
+  ></div>
+
+</div>
+
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://www.youtube.com/iframe_api"></script>
+<script src="/two/sensors.js"></script>
+<script src="/two/two.js"></script>
+
+</body>
+</html>
