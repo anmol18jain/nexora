@@ -1,343 +1,914 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
 
   <meta
     name="viewport"
-    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
-  />
+    content="width=device-width,initial-scale=1,viewport-fit=cover"
+  >
 
-  <meta
-    name="theme-color"
-    content="#090b13"
-  />
+  <meta name="theme-color" content="#080a12">
 
   <title>NEXORA — Together, instantly.</title>
 
-  <link rel="manifest" href="/manifest.json" />
-  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/styles.css">
 </head>
 
 <body>
 
-  <!-- JOIN SCREEN -->
+<!-- =====================================================
+     JOIN SCREEN
+===================================================== -->
 
-  <section id="joinScreen" class="join-screen">
+<section id="joinScreen" class="join-screen">
 
-    <div class="ambient ambient-one"></div>
-    <div class="ambient ambient-two"></div>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
 
-    <div class="join-card">
+  <div class="join-shell">
 
-      <div class="brand-large">
-        <div class="brand-logo">N</div>
+    <div class="join-brand">
 
-        <div>
-          <h1>NEXORA</h1>
-          <p>Together, instantly.</p>
-        </div>
+      <div class="logo">N</div>
+
+      <div>
+        <strong>NEXORA</strong>
+        <span>Together, instantly.</span>
       </div>
 
-      <div class="join-copy">
-        <h2>Your digital room.</h2>
+    </div>
 
-        <p>
-          Call, share your screen, chat and watch together
-          without making communication complicated.
-        </p>
+
+    <div class="hero-copy">
+
+      <div class="eyebrow">
+        YOUR DIGITAL ROOM
       </div>
+
+      <h1>
+        Meet. Share.
+        <span>Experience together.</span>
+      </h1>
+
+      <p>
+        One room for conversations, screen sharing,
+        movies, files and everything you want to experience
+        together.
+      </p>
+
+    </div>
+
+
+    <div class="join-form">
 
       <label>
-        Your name
+        YOUR NAME
+
         <input
           id="nameInput"
           maxlength="30"
           placeholder="Enter your name"
           autocomplete="name"
-        />
+        >
       </label>
 
+
       <label>
-        Room
-        <div class="room-input-row">
+        ROOM
+
+        <div class="room-row">
+
           <input
             id="roomInput"
             maxlength="64"
             placeholder="Room code"
-          />
+          >
 
-          <button id="randomRoomButton" class="secondary-button">
+          <button
+            id="randomRoomButton"
+            class="secondary-button"
+            type="button"
+          >
             Random
           </button>
+
         </div>
+
       </label>
 
-      <button id="joinButton" class="primary-button">
-        Enter room
+
+      <button
+        id="joinButton"
+        class="primary-button join-button"
+        type="button"
+      >
+        Enter Room
       </button>
 
-      <div class="join-features">
-        <span>◉ HD calls</span>
-        <span>▣ Screen share</span>
-        <span>▶ Watch together</span>
+    </div>
+
+
+    <div class="join-features">
+
+      <span>◉ Video calls</span>
+      <span>▣ Screen sharing</span>
+      <span>▶ Media Hub</span>
+      <span>↗ File transfer</span>
+
+    </div>
+
+  </div>
+
+</section>
+
+
+<!-- =====================================================
+     MAIN APP
+===================================================== -->
+
+<main id="app" class="app hidden">
+
+  <!-- TOP BAR -->
+
+  <header class="topbar">
+
+    <div class="brand">
+
+      <div class="logo logo-small">
+        N
+      </div>
+
+      <div>
+        <strong>NEXORA</strong>
+        <span id="roomLabel">Room</span>
       </div>
 
     </div>
-  </section>
 
 
-  <!-- MAIN APPLICATION -->
+    <div class="network-pill">
 
-  <main id="app" class="app hidden">
+      <span
+        id="connectionDot"
+        class="network-dot"
+      ></span>
 
-    <header class="topbar">
+      <span id="connectionText">
+        Connected
+      </span>
 
-      <div class="brand">
-        <div class="brand-logo small">N</div>
+    </div>
 
-        <div>
-          <strong>NEXORA</strong>
-          <span id="roomLabel">Room</span>
-        </div>
+
+    <div class="top-actions">
+
+      <button
+        id="copyButton"
+        class="ghost-button"
+        type="button"
+      >
+        + Invite
+      </button>
+
+      <button
+        id="sidebarButton"
+        class="ghost-button"
+        type="button"
+      >
+        Chat
+      </button>
+
+    </div>
+
+  </header>
+
+
+  <!-- WORKSPACE -->
+
+  <section class="workspace">
+
+    <!-- PEOPLE -->
+
+    <aside class="people-panel">
+
+      <div class="panel-title">
+
+        <span>PEOPLE</span>
+
+        <span
+          id="peopleCount"
+          class="count-badge"
+        >
+          1
+        </span>
+
       </div>
 
-      <div class="connection-pill">
-        <span id="connectionDot" class="connection-dot"></span>
-        <span id="connectionText">Connected</span>
+
+      <div
+        id="peopleList"
+        class="people-list"
+      ></div>
+
+
+      <div class="people-footer">
+
+        <span class="online-dot"></span>
+
+        <span>
+          Room is live
+        </span>
+
       </div>
 
-      <div class="top-actions">
-
-        <button id="copyButton" class="ghost-button">
-          Invite
-        </button>
-
-        <button id="sidebarButton" class="ghost-button">
-          Chat
-        </button>
-
-      </div>
-
-    </header>
+    </aside>
 
 
-    <section class="workspace">
+    <!-- CENTER -->
 
-      <!-- PEOPLE -->
+    <section class="stage-area">
 
-      <aside class="people-panel">
+      <div id="stage" class="stage">
 
-        <div class="panel-heading">
-          <span>PEOPLE</span>
-          <span id="peopleCount">1</span>
-        </div>
+        <!-- EMPTY STATE -->
 
-        <div id="peopleList" class="people-list"></div>
+        <div
+          id="emptyStage"
+          class="empty-stage"
+        >
 
-      </aside>
-
-
-      <!-- STAGE -->
-
-      <section class="stage-area">
-
-        <div id="stage" class="stage">
-
-          <div id="emptyStage" class="empty-stage">
-
-            <div class="stage-orb">
-              <span>N</span>
-            </div>
-
-            <h2>Welcome to your room</h2>
-
-            <p>
-              Your conversations, presentations and watch parties
-              live here.
-            </p>
-
+          <div class="stage-orb">
+            N
           </div>
 
-          <div id="videoGrid" class="video-grid"></div>
+          <h2>
+            Your room is ready
+          </h2>
 
-          <div id="watchStage" class="watch-stage hidden">
+          <p>
+            Invite someone, share your screen or
+            start a watch party.
+          </p>
 
-            <div class="watch-header">
+        </div>
+
+
+        <!-- VIDEO GRID -->
+
+        <div
+          id="videoGrid"
+          class="video-grid"
+        ></div>
+
+
+        <!-- =================================================
+             MEDIA STAGE
+        ================================================= -->
+
+        <div
+          id="watchStage"
+          class="watch-stage hidden"
+        >
+
+          <div class="watch-header">
+
+            <div class="watch-now">
+
+              <span
+                id="watchTypeBadge"
+                class="media-badge"
+              >
+                MEDIA
+              </span>
+
               <div>
-                <strong>Watch Together</strong>
-                <span id="watchTitle">Shared media</span>
+
+                <strong id="watchTitle">
+                  Watch Together
+                </strong>
+
+                <span id="watchStatus">
+                  Ready
+                </span>
+
               </div>
 
-              <button id="closeWatchButton" class="ghost-button">
-                Close
+            </div>
+
+
+            <div class="watch-actions">
+
+              <button
+                id="syncMediaButton"
+                class="ghost-button small-button"
+                type="button"
+              >
+                ↻ Sync
               </button>
-            </div>
 
-            <div id="youtubeContainer" class="youtube-container"></div>
+              <button
+                id="fullscreenMediaButton"
+                class="ghost-button small-button"
+                type="button"
+              >
+                ⛶
+              </button>
 
-          </div>
+              <button
+                id="openMediaHubButton"
+                class="ghost-button small-button"
+                type="button"
+              >
+                + Media
+              </button>
 
-          <div id="reactionLayer" class="reaction-layer"></div>
+              <button
+                id="closeWatchButton"
+                class="ghost-button small-button"
+                type="button"
+              >
+                ×
+              </button>
 
-        </div>
-
-        <div class="control-dock">
-
-          <button id="micButton" class="control active" title="Microphone">
-            🎙
-          </button>
-
-          <button id="cameraButton" class="control active" title="Camera">
-            📹
-          </button>
-
-          <button id="screenButton" class="control" title="Share screen">
-            ▣
-          </button>
-
-          <button id="watchButton" class="control" title="Watch together">
-            ▶
-          </button>
-
-          <label class="control file-control" title="Send file">
-            📎
-            <input id="fileInput" type="file" />
-          </label>
-
-          <button id="reactionButton" class="control" title="React">
-            ✨
-          </button>
-
-          <button id="leaveButton" class="control leave" title="Leave">
-            ☎
-          </button>
-
-        </div>
-
-      </section>
-
-
-      <!-- CHAT -->
-
-      <aside id="sidePanel" class="side-panel">
-
-        <div class="tabs">
-
-          <button class="tab active" data-tab="chat">
-            Chat
-          </button>
-
-          <button class="tab" data-tab="files">
-            Files
-          </button>
-
-        </div>
-
-
-        <div id="chatTab" class="tab-content active">
-
-          <div id="messages" class="messages">
-
-            <div class="system-message">
-              Messages in this room appear here.
             </div>
 
           </div>
 
-          <form id="messageForm" class="message-form">
 
-            <input
-              id="messageInput"
-              placeholder="Message the room..."
-              autocomplete="off"
-            />
+          <div
+            id="mediaPlayerArea"
+            class="media-player-area"
+          >
 
-            <button>➤</button>
-
-          </form>
-
-        </div>
+            <div
+              id="youtubeContainer"
+              class="youtube-container hidden"
+            ></div>
 
 
-        <div id="filesTab" class="tab-content">
+            <video
+              id="sharedVideoPlayer"
+              class="shared-video-player hidden"
+              controls
+              playsinline
+            ></video>
 
-          <div class="files-header">
-            <strong>Shared files</strong>
-            <span>Small files are sent peer-to-peer.</span>
+
+            <div
+              id="localCinemaWaiting"
+              class="local-waiting hidden"
+            >
+
+              <div class="movie-orb">
+                🎬
+              </div>
+
+              <h2>
+                Local Cinema
+              </h2>
+
+              <p id="localWaitingText">
+                Select the matching movie on this device.
+              </p>
+
+              <label class="file-picker-button">
+
+                Select matching movie
+
+                <input
+                  id="localJoinInput"
+                  type="file"
+                  accept="video/*"
+                >
+
+              </label>
+
+            </div>
+
           </div>
 
-          <div id="filesList" class="files-list"></div>
+
+          <div class="sync-bar">
+
+            <span class="sync-dot"></span>
+
+            <span id="cinemaSyncText">
+              Synchronized
+            </span>
+
+            <span class="sync-spacer"></span>
+
+            <span id="cinemaTime">
+              00:00 / 00:00
+            </span>
+
+          </div>
 
         </div>
 
-      </aside>
+
+        <!-- REACTIONS -->
+
+        <div
+          id="reactionLayer"
+          class="reaction-layer"
+        ></div>
+
+      </div>
+
+
+      <!-- =================================================
+           CONTROL DOCK
+      ================================================= -->
+
+      <div class="control-dock">
+
+        <button
+          id="micButton"
+          class="control-button"
+          title="Microphone"
+          type="button"
+        >
+          🎙
+        </button>
+
+
+        <button
+          id="cameraButton"
+          class="control-button"
+          title="Camera"
+          type="button"
+        >
+          📹
+        </button>
+
+
+        <button
+          id="screenButton"
+          class="control-button"
+          title="Share screen"
+          type="button"
+        >
+          ▣
+        </button>
+
+
+        <button
+          id="watchButton"
+          class="control-button media-control"
+          title="Media Hub"
+          type="button"
+        >
+          ▶
+        </button>
+
+
+        <label
+          class="control-button file-control"
+          title="Send file"
+        >
+          📎
+
+          <input
+            id="fileInput"
+            type="file"
+          >
+        </label>
+
+
+        <button
+          id="reactionButton"
+          class="control-button"
+          title="Reaction"
+          type="button"
+        >
+          ✨
+        </button>
+
+
+        <button
+          id="leaveButton"
+          class="control-button leave-button"
+          title="Leave room"
+          type="button"
+        >
+          ☎
+        </button>
+
+      </div>
 
     </section>
 
 
-    <!-- WATCH DIALOG -->
+    <!-- ===================================================
+         CHAT / FILES
+    =================================================== -->
 
-    <dialog id="watchDialog" class="modal">
+    <aside
+      id="sidePanel"
+      class="side-panel"
+    >
 
-      <form method="dialog" class="modal-card">
+      <div class="tabs">
 
-        <div class="modal-icon">▶</div>
+        <button
+          class="tab active"
+          data-tab="chat"
+          type="button"
+        >
+          Chat
+        </button>
 
-        <h2>Watch Together</h2>
+        <button
+          class="tab"
+          data-tab="files"
+          type="button"
+        >
+          Files
+        </button>
+
+        <button
+          class="tab"
+          data-tab="queue"
+          type="button"
+        >
+          Queue
+        </button>
+
+      </div>
+
+
+      <!-- CHAT -->
+
+      <div
+        id="chatTab"
+        class="tab-content active"
+      >
+
+        <div
+          id="messages"
+          class="messages"
+        >
+
+          <div class="system-message">
+
+            <strong>Welcome to NEXORA</strong>
+
+            <span>
+              Messages from this room appear here.
+            </span>
+
+          </div>
+
+        </div>
+
+
+        <form
+          id="messageForm"
+          class="message-form"
+        >
+
+          <input
+            id="messageInput"
+            placeholder="Message the room..."
+            autocomplete="off"
+          >
+
+          <button type="submit">
+            ➤
+          </button>
+
+        </form>
+
+      </div>
+
+
+      <!-- FILES -->
+
+      <div
+        id="filesTab"
+        class="tab-content"
+      >
+
+        <div class="tab-intro">
+
+          <strong>Shared Files</strong>
+
+          <span>
+            Small files are transferred directly
+            between participants.
+          </span>
+
+        </div>
+
+
+        <div
+          id="filesList"
+          class="files-list"
+        ></div>
+
+      </div>
+
+
+      <!-- QUEUE -->
+
+      <div
+        id="queueTab"
+        class="tab-content"
+      >
+
+        <div class="tab-intro">
+
+          <strong>Media Queue</strong>
+
+          <span>
+            Media shared in this room.
+          </span>
+
+        </div>
+
+
+        <div
+          id="mediaQueue"
+          class="media-queue"
+        >
+
+          <div class="empty-queue">
+            Nothing queued yet.
+          </div>
+
+        </div>
+
+      </div>
+
+    </aside>
+
+  </section>
+
+</main>
+
+
+<!-- =====================================================
+     MEDIA HUB
+===================================================== -->
+
+<dialog
+  id="watchDialog"
+  class="media-dialog"
+>
+
+  <div class="media-hub">
+
+    <div class="media-hub-header">
+
+      <div>
+
+        <span class="eyebrow">
+          NEXORA MEDIA
+        </span>
+
+        <h2>
+          Watch Together
+        </h2>
 
         <p>
-          Paste a YouTube link. Everyone in the room will load
-          the same video.
+          Choose how you want to bring media
+          into the room.
         </p>
+
+      </div>
+
+
+      <button
+        id="closeMediaHubButton"
+        class="modal-close"
+        type="button"
+      >
+        ×
+      </button>
+
+    </div>
+
+
+    <!-- MEDIA TYPE -->
+
+    <div class="source-selector">
+
+      <button
+        class="source-card active"
+        data-source="youtube"
+        type="button"
+      >
+
+        <span class="source-icon">
+          ▶
+        </span>
+
+        <span>
+          <strong>YouTube</strong>
+          <small>Paste a link</small>
+        </span>
+
+      </button>
+
+
+      <button
+        class="source-card"
+        data-source="direct"
+        type="button"
+      >
+
+        <span class="source-icon">
+          🔗
+        </span>
+
+        <span>
+          <strong>Video URL</strong>
+          <small>MP4 / WebM</small>
+        </span>
+
+      </button>
+
+
+      <button
+        class="source-card"
+        data-source="local"
+        type="button"
+      >
+
+        <span class="source-icon">
+          🎬
+        </span>
+
+        <span>
+          <strong>Local Cinema</strong>
+          <small>Downloaded movie</small>
+        </span>
+
+      </button>
+
+    </div>
+
+
+    <!-- YOUTUBE PANEL -->
+
+    <section
+      id="youtubeSource"
+      class="source-panel active"
+    >
+
+      <label>
+        YOUTUBE LINK
 
         <input
           id="mediaUrlInput"
           placeholder="https://youtube.com/watch?v=..."
-        />
+        >
+      </label>
 
-        <div class="modal-actions">
 
-          <button value="cancel" class="secondary-button">
-            Cancel
-          </button>
+      <button
+        id="loadMediaButton"
+        class="primary-button media-start"
+        type="button"
+      >
+        Start YouTube Party
+      </button>
 
-          <button
-            id="loadMediaButton"
-            value="default"
-            class="primary-button"
-          >
-            Start watching
-          </button>
+    </section>
 
+
+    <!-- DIRECT VIDEO -->
+
+    <section
+      id="directSource"
+      class="source-panel"
+    >
+
+      <label>
+        VIDEO URL
+
+        <input
+          id="directVideoUrl"
+          placeholder="https://example.com/video.mp4"
+        >
+      </label>
+
+
+      <p class="helper-text">
+        Use a direct MP4/WebM URL whose host allows
+        browser playback.
+      </p>
+
+
+      <button
+        id="loadDirectVideoButton"
+        class="primary-button media-start"
+        type="button"
+      >
+        Start Video
+      </button>
+
+    </section>
+
+
+    <!-- LOCAL -->
+
+    <section
+      id="localSource"
+      class="source-panel"
+    >
+
+      <div class="local-file-zone">
+
+        <div class="local-file-icon">
+          🎞
         </div>
 
-      </form>
+        <strong>
+          Local Cinema
+        </strong>
 
-    </dialog>
-
-
-    <!-- REACTION MENU -->
-
-    <div id="reactionMenu" class="reaction-menu hidden">
-      <button>❤️</button>
-      <button>🔥</button>
-      <button>👏</button>
-      <button>😂</button>
-      <button>🎉</button>
-      <button>👍</button>
-    </div>
-
-  </main>
+        <p>
+          The movie stays on your device.
+          Only playback timing is synchronized.
+        </p>
 
 
-  <div id="toast" class="toast"></div>
+        <label class="file-picker-button">
 
-  <script src="/socket.io/socket.io.js"></script>
+          Choose video
 
-  <script src="https://www.youtube.com/iframe_api"></script>
+          <input
+            id="localCinemaInput"
+            type="file"
+            accept="video/*"
+          >
 
-  <script src="/app.js"></script>
+        </label>
+
+      </div>
+
+
+      <div
+        id="selectedLocalFile"
+        class="selected-file hidden"
+      ></div>
+
+
+      <button
+        id="startLocalCinemaButton"
+        class="primary-button media-start"
+        type="button"
+        disabled
+      >
+        Start Local Cinema
+      </button>
+
+    </section>
+
+  </div>
+
+</dialog>
+
+
+<!-- =====================================================
+     REACTIONS
+===================================================== -->
+
+<div
+  id="reactionMenu"
+  class="reaction-menu hidden"
+>
+
+  <button type="button">❤️</button>
+  <button type="button">🔥</button>
+  <button type="button">👏</button>
+  <button type="button">😂</button>
+  <button type="button">🎉</button>
+  <button type="button">👍</button>
+
+</div>
+
+
+<!-- TOAST -->
+
+<div
+  id="toast"
+  class="toast"
+></div>
+
+
+<!-- Socket.IO MUST load before app.js -->
+
+<script src="/socket.io/socket.io.js"></script>
+
+<!-- YouTube player API -->
+
+<script src="https://www.youtube.com/iframe_api"></script>
+
+<script src="/app.js"></script>
 
 </body>
 </html>

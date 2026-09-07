@@ -9,66 +9,30 @@ const server = http.createServer(app);
 
 const PORT = process.env.PORT || 3000;
 
-/* =========================================================
-   SOCKET.IO
-========================================================= */
-
 const io = new Server(server, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
   },
-
-  // Allows signaling + reasonably sized messages.
   maxHttpBufferSize: 10 * 1024 * 1024,
-
   pingTimeout: 20000,
   pingInterval: 25000
 });
 
-
-/* =========================================================
-   EXPRESS
-========================================================= */
-
 app.disable("x-powered-by");
-
-app.use(express.json({
-  limit: "1mb"
-}));
-
-app.use(
-  express.static(
-    path.join(__dirname, "public")
-  )
-);
-
-
-/* =========================================================
-   HEALTH CHECK
-========================================================= */
+app.use(express.json({ limit: "1mb" }));
+app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/health", (req, res) => {
   res.json({
     ok: true,
-    name: "NEXORA",
-    status: "online",
+    app: "NEXORA",
+    version: "2.0.0",
     time: new Date().toISOString()
   });
 });
 
-
-/* =========================================================
-   ROOM STORAGE
-
-   This is intentionally in-memory for now.
-
-   Later we can move persistent room information to Redis
-   when scaling across multiple Render instances.
-========================================================= */
-
 const rooms = new Map();
-
 
 function cleanRoomId(value) {
   return String(value || "")
@@ -78,753 +42,301 @@ function cleanRoomId(value) {
     .slice(0, 64);
 }
 
-
 function cleanName(value) {
-  const name = String(value || "")
-    .trim()
-    .replace(/[<>]/g, "")
-    .slice(0, 30);
-
-  return name || "Guest";
+  return (
+    String(value || "")
+      .trim()
+      .replace(/[<>]/g, "")
+      .slice(0, 30) || "Guest"
+  );
 }
 
-
 function getRoom(roomId) {
-
   if (!rooms.has(roomId)) {
-
     rooms.set(roomId, {
-
-      createdAt: Date.now(),
-
       users: new Map(),
-
-      media: {
-        url: "",
-        playing: false,
-        currentTime: 0,
-        updatedAt: Date.now()
-      }
-
+      media: null,
+      queue: []
     });
-
   }
 
   return rooms.get(roomId);
 }
 
-
-function getRoomUsers(room) {
-
-  return [...room.users.entries()]
-    .map(([id, user]) => ({
-      id,
-      name: user.name,
-      joinedAt: user.joinedAt
-    }));
-
+function getUsers(room) {
+  return [...room.users.entries()].map(([id, user]) => ({
+    id,
+    name: user.name
+  }));
 }
 
-
-/* =========================================================
-   REMOVE USER
-========================================================= */
-
-function leaveCurrentRoom(socket) {
-
-  const roomId =
-    socket.data.roomId;
+function leaveRoom(socket) {
+  const roomId = socket.data.roomId;
 
   if (!roomId) return;
 
-  const room =
-    rooms.get(roomId);
+  const room = rooms.get(roomId);
 
   if (room) {
+    room.users.delete(socket.id);
 
-    room.users.delete(
-      socket.id
-    );
+    socket.to(roomId).emit("user-left", {
+      id: socket.id
+    });
 
+    io.to(roomId).emit("room-users", getUsers(room));
 
-    /* Tell remaining clients */
-
-    socket
-      .to(roomId)
-      .emit(
-        "user-left",
-        {
-          id: socket.id
-        }
-      );
-
-
-    /* Send fresh participant list */
-
-    io
-      .to(roomId)
-      .emit(
-        "room-users",
-        getRoomUsers(room)
-      );
-
-
-    /*
-      Delete completely empty rooms so memory
-      doesn't keep growing forever.
-    */
-
-    if (
-      room.users.size === 0
-    ) {
-
+    if (room.users.size === 0) {
       rooms.delete(roomId);
-
-      console.log(
-        `[ROOM REMOVED] ${roomId}`
-      );
-
+      console.log(`[ROOM CLOSED] ${roomId}`);
     }
-
   }
-
 
   try {
-
     socket.leave(roomId);
-
-  } catch (error) {
-
-    console.warn(
-      "Unable to leave room:",
-      error.message
-    );
-
-  }
-
+  } catch {}
 
   socket.data.roomId = null;
   socket.data.name = null;
 }
 
+io.on("connection", (socket) => {
+  console.log(`[CONNECTED] ${socket.id}`);
+
+  socket.on("join-room", (payload = {}, callback) => {
+    const respond =
+      typeof callback === "function" ? callback : () => {};
+
+    const roomId = cleanRoomId(payload.roomId);
+    const name = cleanName(payload.name);
+
+    if (!roomId) {
+      respond({
+        ok: false,
+        error: "Invalid room ID."
+      });
+      return;
+    }
+
+    if (socket.data.roomId) {
+      leaveRoom(socket);
+    }
 
-/* =========================================================
-   SOCKET CONNECTION
-========================================================= */
+    const room = getRoom(roomId);
 
-io.on(
-  "connection",
-  (socket) => {
+    socket.join(roomId);
 
-    console.log(
-      `[CONNECTED] ${socket.id}`
-    );
+    socket.data.roomId = roomId;
+    socket.data.name = name;
 
+    room.users.set(socket.id, {
+      name,
+      joinedAt: Date.now()
+    });
 
-    /* =====================================================
-       JOIN ROOM
-    ===================================================== */
+    respond({
+      ok: true,
+      selfId: socket.id,
+      roomId,
+      users: getUsers(room),
+      media: room.media,
+      queue: room.queue
+    });
 
-    socket.on(
-      "join-room",
-      (payload = {}, callback) => {
+    socket.to(roomId).emit("user-joined", {
+      id: socket.id,
+      name
+    });
 
-        const respond =
-          typeof callback === "function"
-            ? callback
-            : () => {};
+    io.to(roomId).emit("room-users", getUsers(room));
 
+    console.log(`[JOIN] ${name} -> ${roomId}`);
+  });
 
-        const roomId =
-          cleanRoomId(
-            payload.roomId
-          );
+  // WebRTC signaling
+  socket.on("signal", (payload = {}) => {
+    if (!payload.target || !payload.data) return;
+    if (payload.target === socket.id) return;
 
-        const name =
-          cleanName(
-            payload.name
-          );
+    io.to(payload.target).emit("signal", {
+      from: socket.id,
+      name: socket.data.name || "Guest",
+      data: payload.data
+    });
+  });
 
+  // Chat
+  socket.on("chat-message", (payload = {}) => {
+    const roomId = socket.data.roomId;
 
-        if (!roomId) {
+    if (!roomId) return;
 
-          respond({
-            ok: false,
-            error: "Invalid room ID."
-          });
+    const text = String(payload.text || "")
+      .trim()
+      .slice(0, 2000);
 
-          return;
-        }
+    if (!text) return;
 
+    io.to(roomId).emit("chat-message", {
+      id: crypto.randomUUID(),
+      senderId: socket.id,
+      name: socket.data.name || "Guest",
+      text,
+      timestamp: Date.now()
+    });
+  });
 
-        /*
-          If this socket was previously inside another
-          room, remove it first.
-        */
+  // Reactions
+  socket.on("reaction", (payload = {}) => {
+    const roomId = socket.data.roomId;
 
-        if (
-          socket.data.roomId
-        ) {
+    if (!roomId) return;
 
-          leaveCurrentRoom(
-            socket
-          );
+    const allowed = ["❤️", "🔥", "👏", "😂", "🎉", "👍"];
 
-        }
+    if (!allowed.includes(payload.emoji)) return;
 
+    io.to(roomId).emit("reaction", {
+      senderId: socket.id,
+      name: socket.data.name || "Guest",
+      emoji: payload.emoji
+    });
+  });
 
-        const room =
-          getRoom(roomId);
+  // Media Hub
+  socket.on("media-load", (payload = {}) => {
+    const roomId = socket.data.roomId;
+    if (!roomId) return;
 
+    const room = rooms.get(roomId);
+    if (!room) return;
 
-        socket.join(roomId);
+    const allowedTypes = ["youtube", "direct", "local"];
 
+    if (!allowedTypes.includes(payload.type)) return;
 
-        socket.data.roomId =
-          roomId;
+    const media = {
+      id: String(payload.id || crypto.randomUUID()).slice(0, 100),
 
-        socket.data.name =
-          name;
+      type: payload.type,
 
+      title: String(payload.title || "Shared Media").slice(0, 300),
 
-        room.users.set(
-          socket.id,
-          {
-            name,
-            joinedAt: Date.now()
-          }
-        );
+      playing: false,
+      currentTime: 0,
 
+      updatedAt: Date.now()
+    };
 
-        console.log(
-          `[JOIN] ${name} -> ${roomId}`
-        );
+    if (payload.type === "youtube") {
+      media.url = String(payload.url || "").slice(0, 2000);
+      media.videoId = String(payload.videoId || "").slice(0, 100);
+    }
 
+    if (payload.type === "direct") {
+      media.url = String(payload.url || "").slice(0, 4000);
+    }
 
-        /*
-          Return room state directly to the joining user.
-        */
+    if (payload.type === "local") {
+      media.fileName = String(payload.fileName || "").slice(0, 300);
+      media.fileSize = Math.max(0, Number(payload.fileSize) || 0);
+      media.fingerprint = String(payload.fingerprint || "").slice(0, 128);
+    }
 
-        respond({
+    room.media = media;
 
-          ok: true,
+    room.queue.push({
+      id: media.id,
+      type: media.type,
+      title: media.title
+    });
 
-          selfId: socket.id,
+    if (room.queue.length > 20) {
+      room.queue = room.queue.slice(-20);
+    }
 
-          roomId,
+    socket.to(roomId).emit("media-load", media);
 
-          users:
-            getRoomUsers(room),
+    io.to(roomId).emit("media-queue", room.queue);
+  });
 
-          media:
-            room.media
+  // Media synchronization
+  socket.on("media-state", (payload = {}) => {
+    const roomId = socket.data.roomId;
 
-        });
+    if (!roomId) return;
 
+    const room = rooms.get(roomId);
 
-        /*
-          Tell existing users that somebody joined.
+    if (!room || !room.media) return;
 
-          Existing users will create WebRTC offers toward
-          this new participant.
-        */
+    if (
+      payload.mediaId &&
+      room.media.id &&
+      payload.mediaId !== room.media.id
+    ) {
+      return;
+    }
 
-        socket
-          .to(roomId)
-          .emit(
-            "user-joined",
-            {
-              id: socket.id,
-              name
-            }
-          );
+    const currentTime = Number(payload.currentTime);
 
+    room.media.playing = Boolean(payload.playing);
 
-        /*
-          Synchronize participant sidebar.
-        */
+    room.media.currentTime = Number.isFinite(currentTime)
+      ? Math.max(0, currentTime)
+      : 0;
 
-        io
-          .to(roomId)
-          .emit(
-            "room-users",
-            getRoomUsers(room)
-          );
+    room.media.updatedAt = Date.now();
 
-      }
-    );
+    socket.to(roomId).emit("media-state", {
+      mediaId: room.media.id,
+      type: room.media.type,
+      playing: room.media.playing,
+      currentTime: room.media.currentTime,
+      sentAt: Date.now()
+    });
+  });
 
+  socket.on("leave-room", () => {
+    leaveRoom(socket);
+  });
 
-    /* =====================================================
-       WEBRTC SIGNALING
-
-       Offers
-       Answers
-       ICE candidates
-    ===================================================== */
-
-    socket.on(
-      "signal",
-      (payload = {}) => {
-
-        const target =
-          payload.target;
-
-        const data =
-          payload.data;
-
-
-        if (
-          !target ||
-          !data
-        ) {
-          return;
-        }
-
-
-        /*
-          Don't allow clients to signal themselves.
-        */
-
-        if (
-          target === socket.id
-        ) {
-          return;
-        }
-
-
-        io
-          .to(target)
-          .emit(
-            "signal",
-            {
-              from: socket.id,
-
-              name:
-                socket.data.name ||
-                "Guest",
-
-              data
-            }
-          );
-
-      }
-    );
-
-
-    /* =====================================================
-       CHAT
-    ===================================================== */
-
-    socket.on(
-      "chat-message",
-      (payload = {}) => {
-
-        const roomId =
-          socket.data.roomId;
-
-
-        if (!roomId) return;
-
-
-        const text =
-          String(
-            payload.text || ""
-          )
-            .trim()
-            .slice(0, 2000);
-
-
-        if (!text) return;
-
-
-        io
-          .to(roomId)
-          .emit(
-            "chat-message",
-            {
-
-              id:
-                crypto.randomUUID(),
-
-              senderId:
-                socket.id,
-
-              name:
-                socket.data.name ||
-                "Guest",
-
-              text,
-
-              timestamp:
-                Date.now()
-
-            }
-          );
-
-      }
-    );
-
-
-    /* =====================================================
-       REACTIONS
-    ===================================================== */
-
-    socket.on(
-      "reaction",
-      (payload = {}) => {
-
-        const roomId =
-          socket.data.roomId;
-
-
-        if (!roomId) return;
-
-
-        const allowedReactions = [
-          "❤️",
-          "🔥",
-          "👏",
-          "😂",
-          "🎉",
-          "👍"
-        ];
-
-
-        if (
-          !allowedReactions.includes(
-            payload.emoji
-          )
-        ) {
-          return;
-        }
-
-
-        io
-          .to(roomId)
-          .emit(
-            "reaction",
-            {
-
-              senderId:
-                socket.id,
-
-              name:
-                socket.data.name ||
-                "Guest",
-
-              emoji:
-                payload.emoji
-
-            }
-          );
-
-      }
-    );
-
-
-    /* =====================================================
-       WATCH TOGETHER — LOAD MEDIA
-    ===================================================== */
-
-    socket.on(
-      "media-load",
-      (payload = {}) => {
-
-        const roomId =
-          socket.data.roomId;
-
-
-        if (!roomId) return;
-
-
-        const room =
-          rooms.get(roomId);
-
-
-        if (!room) return;
-
-
-        const url =
-          String(
-            payload.url || ""
-          )
-            .trim()
-            .slice(0, 2000);
-
-
-        if (!url) return;
-
-
-        room.media = {
-
-          url,
-
-          playing: false,
-
-          currentTime: 0,
-
-          updatedAt:
-            Date.now()
-
-        };
-
-
-        /*
-          Sender already loads it locally, so send to
-          everybody else.
-        */
-
-        socket
-          .to(roomId)
-          .emit(
-            "media-load",
-            room.media
-          );
-
-      }
-    );
-
-
-    /* =====================================================
-       WATCH TOGETHER — PLAYBACK STATE
-
-       The current starter frontend doesn't yet use all
-       of this, but the backend is prepared for synchronized
-       playback.
-    ===================================================== */
-
-    socket.on(
-      "media-state",
-      (payload = {}) => {
-
-        const roomId =
-          socket.data.roomId;
-
-
-        if (!roomId) return;
-
-
-        const room =
-          rooms.get(roomId);
-
-
-        if (!room) return;
-
-
-        const currentTime =
-          Number(
-            payload.currentTime
-          );
-
-
-        room.media.playing =
-          Boolean(
-            payload.playing
-          );
-
-
-        room.media.currentTime =
-          Number.isFinite(
-            currentTime
-          )
-            ? Math.max(
-                0,
-                currentTime
-              )
-            : 0;
-
-
-        room.media.updatedAt =
-          Date.now();
-
-
-        socket
-          .to(roomId)
-          .emit(
-            "media-state",
-            room.media
-          );
-
-      }
-    );
-
-
-    /* =====================================================
-       MANUAL LEAVE
-    ===================================================== */
-
-    socket.on(
-      "leave-room",
-      () => {
-
-        leaveCurrentRoom(
-          socket
-        );
-
-      }
-    );
-
-
-    /* =====================================================
-       DISCONNECT
-    ===================================================== */
-
-    socket.on(
-      "disconnect",
-      (reason) => {
-
-        console.log(
-          `[DISCONNECTED] ${socket.id} (${reason})`
-        );
-
-        leaveCurrentRoom(
-          socket
-        );
-
-      }
-    );
-
-
-    socket.on(
-      "error",
-      (error) => {
-
-        console.error(
-          `[SOCKET ERROR] ${socket.id}`,
-          error
-        );
-
-      }
-    );
-
-  }
-);
-
-
-/* =========================================================
-   FALLBACK
-
-   Allows normal browser navigation back to the SPA.
-========================================================= */
-
-app.use((req, res, next) => {
-
-  /*
-    Never intercept Socket.IO's own endpoint.
-  */
-
-  if (
-    req.path.startsWith(
-      "/socket.io/"
-    )
-  ) {
-
-    return next();
-
-  }
-
-
-  /*
-    If the browser requests a file that doesn't exist,
-    don't incorrectly return index.html for it.
-  */
-
-  if (
-    path.extname(req.path)
-  ) {
-
-    return res.status(404).send(
-      "Not found"
-    );
-
-  }
-
-
-  res.sendFile(
-    path.join(
-      __dirname,
-      "public",
-      "index.html"
-    )
-  );
-
+  socket.on("disconnect", (reason) => {
+    console.log(`[DISCONNECTED] ${socket.id}: ${reason}`);
+    leaveRoom(socket);
+  });
 });
 
-
-/* =========================================================
-   PROCESS ERROR LOGGING
-========================================================= */
-
-process.on(
-  "unhandledRejection",
-  (reason) => {
-
-    console.error(
-      "Unhandled rejection:",
-      reason
-    );
-
+app.use((req, res, next) => {
+  if (req.path.startsWith("/socket.io/")) {
+    return next();
   }
-);
 
-
-process.on(
-  "uncaughtException",
-  (error) => {
-
-    console.error(
-      "Uncaught exception:",
-      error
-    );
-
+  if (path.extname(req.path)) {
+    return res.status(404).send("Not found");
   }
-);
 
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
 
-/* =========================================================
-   START NEXORA
-========================================================= */
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled rejection:", reason);
+});
 
-server.listen(
-  PORT,
-  "0.0.0.0",
-  () => {
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught exception:", error);
+});
 
-    console.log("");
-    console.log(
-      "================================"
-    );
-
-    console.log(
-      "       NEXORA IS ONLINE"
-    );
-
-    console.log(
-      "================================"
-    );
-
-    console.log(
-      `Server: http://localhost:${PORT}`
-    );
-
-    console.log(
-      `Health: http://localhost:${PORT}/health`
-    );
-
-    console.log(
-      "Socket.IO: ready"
-    );
-
-    console.log(
-      "WebRTC signaling: ready"
-    );
-
-    console.log(
-      "================================"
-    );
-
-    console.log("");
-
-  }
-);
+server.listen(PORT, "0.0.0.0", () => {
+  console.log("");
+  console.log("======================================");
+  console.log("          NEXORA 2.0 ONLINE");
+  console.log("======================================");
+  console.log(`Local:     http://localhost:${PORT}`);
+  console.log(`Health:    http://localhost:${PORT}/health`);
+  console.log("Socket.IO: READY");
+  console.log("WebRTC:    READY");
+  console.log("Media Hub: READY");
+  console.log("======================================");
+  console.log("");
+});
